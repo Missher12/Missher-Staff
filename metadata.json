@@ -1,0 +1,6 @@
+{
+  "name": "STAFF 活动管理系统",
+  "description": "一套完整的活动 STAFF 报名、面试、分组、签到与考勤管理系统前端",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
