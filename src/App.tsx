@@ -2,29 +2,72 @@
  * STAFF 活动报名与考勤系统 - 核心路由映射与应用入口
  */
 
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { useAuthStore } from "./app/stores/authStore";
 
 // Guards
-import { RoleGuard, AnnouncementGuard } from "./app/guards/Guards";
+import { AnnouncementGuard } from "./app/guards/Guards";
 
-// Pages
-import { Login } from "./pages/public/Login";
-import { ActivityApply } from "./pages/public/ActivityApply";
-import { ApplicationForm } from "./pages/public/ApplicationForm";
+// Import Modular Routing Definitions
+import { publicRoutes } from "./app/router/public.routes";
+import { applicantRoutes } from "./app/router/applicant.routes";
+import { staffRoutes } from "./app/router/staff.routes";
+import { leaderRoutes } from "./app/router/leader.routes";
+import { adminRoutes } from "./app/router/admin.routes";
+import { superAdminRoutes } from "./app/router/super-admin.routes";
 
-import { ApplicantDashboard } from "./pages/applicant/ApplicantDashboard";
-import { InterviewQrCode } from "./pages/applicant/InterviewQrCode";
+import { ShieldAlert, HelpCircle } from "lucide-react";
 
-import { StaffDashboard } from "./pages/staff/StaffDashboard";
-import { AttendanceCheck } from "./pages/staff/AttendanceCheck";
-import { AttendanceHistory } from "./pages/staff/AttendanceHistory";
+// ==========================================
+// 403 Error Page (Unauthorized Access)
+// ==========================================
+export const Error403: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center p-6 text-center">
+      <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-[28px] p-8 max-w-sm shadow-sm space-y-4">
+        <div className="w-16 h-16 bg-red-50 border border-red-100 rounded-full flex items-center justify-center mx-auto text-[#FF453A]">
+          <ShieldAlert size={32} />
+        </div>
+        <h1 className="text-lg font-black text-[#1D1D1F]">403 - 访问凭证受限</h1>
+        <p className="text-xs text-[#86868B] leading-relaxed font-semibold">
+          由于系统安全沙盒策略，您的账户当前角色权限等级不足以访问该控制台，请返回登录中心。
+        </p>
+        <Link 
+          to="/login" 
+          className="w-full py-3.5 bg-[#0A84FF] text-white text-xs font-bold rounded-full block cursor-pointer hover:bg-[#0A84FF]/90 transition-all"
+        >
+          返回登录中心
+        </Link>
+      </div>
+    </div>
+  );
+};
 
-import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { ApplicationReview } from "./pages/admin/ApplicationReview";
-import { ApplicationDetail } from "./pages/admin/ApplicationDetail";
-import { InterviewSessions } from "./pages/admin/InterviewSessions";
-import { RealtimeAttendance } from "./pages/admin/RealtimeAttendance";
+// ==========================================
+// 404 Error Page (Not Found)
+// ==========================================
+export const Error404: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center p-6 text-center">
+      <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-[28px] p-8 max-w-sm shadow-sm space-y-4">
+        <div className="w-16 h-16 bg-zinc-100 border border-zinc-200 rounded-full flex items-center justify-center mx-auto text-zinc-500">
+          <HelpCircle size={32} />
+        </div>
+        <h1 className="text-lg font-black text-[#1D1D1F]">404 - 链接资源已丢失</h1>
+        <p className="text-xs text-[#86868B] leading-relaxed font-semibold">
+          系统无法定位您所请求的工作卡、岗位排班表或会务档案。可能此活动已安全归档结账。
+        </p>
+        <Link 
+          to="/" 
+          className="w-full py-3.5 bg-zinc-800 text-white text-xs font-bold rounded-full block cursor-pointer hover:bg-zinc-700 transition-all"
+        >
+          返回应用首页
+        </Link>
+      </div>
+    </div>
+  );
+};
 
 export default function App() {
   const { isAuthenticated, user } = useAuthStore();
@@ -33,125 +76,66 @@ export default function App() {
     <BrowserRouter>
       <AnnouncementGuard>
         <Routes>
-          {/* ========================================================
-              1. 游客/公用公开路由
-             ======================================================== */}
-          <Route path="/login" element={<Login />} />
-          
-          {/* 活动宣传展示 Landing Page */}
-          <Route path="/activities/:activityId/apply" element={<ActivityApply />} />
+          {/* 403 and 404 error views */}
+          <Route path="/403" element={<Error403 />} />
+          <Route path="/404" element={<Error404 />} />
 
-          {/* 动态步骤报名表填写 (游客/报名人员可访问，表单内支持自动建档登录) */}
-          <Route path="/activities/:activityId/application-form" element={<ApplicationForm />} />
+          {/* Load Public Routes */}
+          {publicRoutes.map((r, idx) => {
+            const RouteElement = Route as any;
+            return <RouteElement key={`pub-${idx}`} path={r.path} element={r.element} />;
+          })}
 
-          {/* ========================================================
-              2. 报名候选人专属路由 (APPLICANT 权限)
-             ======================================================== */}
-          <Route 
-            path="/applicant/dashboard" 
-            element={
-              <RoleGuard allowedRoles={["APPLICANT"]}>
-                <ApplicantDashboard />
-              </RoleGuard>
-            } 
-          />
-          <Route 
-            path="/applicant/interview-qrcode" 
-            element={
-              <RoleGuard allowedRoles={["APPLICANT"]}>
-                <InterviewQrCode />
-              </RoleGuard>
-            } 
-          />
+          {/* Load Applicant-only Routes */}
+          {applicantRoutes.map((r, idx) => {
+            const RouteElement = Route as any;
+            return <RouteElement key={`app-${idx}`} path={r.path} element={r.element} />;
+          })}
 
-          {/* ========================================================
-              3. STAFF 临时工作人员考勤及组内通信路由 (STAFF/LEADER 权限)
-             ======================================================== */}
-          <Route 
-            path="/staff/dashboard" 
-            element={
-              <RoleGuard allowedRoles={["STAFF", "LEADER"]}>
-                <StaffDashboard />
-              </RoleGuard>
-            } 
-          />
-          <Route 
-            path="/staff/attendance/check" 
-            element={
-              <RoleGuard allowedRoles={["STAFF", "LEADER"]}>
-                <AttendanceCheck />
-              </RoleGuard>
-            } 
-          />
-          <Route 
-            path="/staff/attendance" 
-            element={
-              <RoleGuard allowedRoles={["STAFF", "LEADER"]}>
-                <AttendanceHistory />
-              </RoleGuard>
-            } 
-          />
+          {/* Load Staff-only Routes */}
+          {staffRoutes.map((r, idx) => {
+            const RouteElement = Route as any;
+            return <RouteElement key={`stf-${idx}`} path={r.path} element={r.element} />;
+          })}
+
+          {/* Load Team Leader Routes */}
+          {leaderRoutes.map((r, idx) => {
+            const RouteElement = Route as any;
+            return <RouteElement key={`ldr-${idx}`} path={r.path} element={r.element} />;
+          })}
+
+          {/* Load Activity Admin Routes */}
+          {adminRoutes.map((r, idx) => {
+            const RouteElement = Route as any;
+            return <RouteElement key={`adm-${idx}`} path={r.path} element={r.element} />;
+          })}
+
+          {/* Load Super Admin Routes */}
+          {superAdminRoutes.map((r, idx) => {
+            const RouteElement = Route as any;
+            return <RouteElement key={`sad-${idx}`} path={r.path} element={r.element} />;
+          })}
 
           {/* ========================================================
-              4. 展会会务考勤及后台管理员路由 (ADMIN 权限)
-             ======================================================== */}
-          <Route 
-            path="/admin/dashboard" 
-            element={
-              <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
-                <AdminDashboard />
-              </RoleGuard>
-            } 
-          />
-          <Route 
-            path="/admin/applications" 
-            element={
-              <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
-                <ApplicationReview />
-              </RoleGuard>
-            } 
-          />
-          <Route 
-            path="/admin/applications/:applicationId" 
-            element={
-              <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
-                <ApplicationDetail />
-              </RoleGuard>
-            } 
-          />
-          <Route 
-            path="/admin/interviews" 
-            element={
-              <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN", "LEADER"]}>
-                <InterviewSessions />
-              </RoleGuard>
-            } 
-          />
-          <Route 
-            path="/admin/attendance/realtime" 
-            element={
-              <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
-                <RealtimeAttendance />
-              </RoleGuard>
-            } 
-          />
-
-          {/* ========================================================
-              5. 统一默认重定向路由
+              Global fallback & Role-based Redirection
              ======================================================== */}
           <Route 
             path="*" 
             element={
               isAuthenticated && user ? (
                 user.role === "APPLICANT" ? (
-                  <Navigate to="/applicant/dashboard" replace />
-                ) : user.role === "STAFF" || user.role === "LEADER" ? (
-                  <Navigate to="/staff/dashboard" replace />
+                  <Navigate to="/applicant" replace />
+                ) : user.role === "STAFF" ? (
+                  <Navigate to="/staff" replace />
+                ) : user.role === "LEADER" ? (
+                  <Navigate to="/leader" replace />
+                ) : user.role === "SUPER_ADMIN" ? (
+                  <Navigate to="/super-admin" replace />
                 ) : (
-                  <Navigate to="/admin/dashboard" replace />
+                  <Navigate to="/admin" replace />
                 )
               ) : (
-                // 默认去往嘉年华首发报名活动页
+                // If not authenticated, go straight to the default activity landing page
                 <Navigate to="/activities/ACT_2026_01/apply" replace />
               )
             } 

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { Activity, Application, InterviewSlot, AttendanceRecord, Group, Announcement, AttendanceStatus, ApplicationStatus, InterviewStatus, EmploymentStatus } from "../../shared/types";
-import { mockActivities, mockApplications, mockInterviewSlots, mockGroups, mockAttendanceRecords, mockAnnouncements } from "../../shared/mocks/data";
+import { mockActivities, mockApplications, mockInterviewSlots, mockGroups, mockAttendanceRecords, mockAnnouncements, mockUsers } from "../../shared/mocks/data";
 
 interface EventState {
   activities: Activity[];
@@ -236,11 +236,18 @@ export const useEventStore = create<EventState>((set, get) => {
       // 如果录用了，要把这个人设为 STAFF 并加入到小组中去
       if (isEmployed) {
         // 查找这个用户，把他的角色改写为 STAFF 角色
-        const { mockUsers } = require("../../shared/mocks/data");
         const u = mockUsers.find((user: any) => user.id === app.userId);
         if (u) {
           u.role = "STAFF";
         }
+
+        // 同时在 db 实例中也把其角色改写为 STAFF
+        import("../../shared/api/mock-adapter").then(({ db }) => {
+          const du = db.users.find(user => user.id === app.userId);
+          if (du) {
+            du.role = "STAFF";
+          }
+        });
 
         // 检查这个 Group 是否存在，不存在就新建一个
         const groupExists = groups.find(g => g.name === groupName);

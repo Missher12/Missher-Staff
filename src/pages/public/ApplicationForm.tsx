@@ -4,6 +4,7 @@ import { useEventStore } from "../../app/stores/eventStore";
 import { useAuthStore } from "../../app/stores/authStore";
 import { FileUploader, ConfirmDialog } from "../../shared/ui";
 import { ArrowLeft, ArrowRight, Save, CheckCircle, Info } from "lucide-react";
+import { mockUsers } from "../../shared/mocks/data";
 
 export const ApplicationForm: React.FC = () => {
   const { activityId } = useParams<{ activityId: string }>();
@@ -101,7 +102,6 @@ export const ApplicationForm: React.FC = () => {
     // 如果没有，直接将其注入 store 并强制登录为林可儿角色或该临时新角色
     if (!user) {
       // 写入 mockUsers
-      const { mockUsers } = require("../../shared/mocks/data");
       const newUser = {
         id: currentUserId,
         name,
@@ -111,6 +111,11 @@ export const ApplicationForm: React.FC = () => {
         gender
       };
       mockUsers.push(newUser);
+      // 同时写入 db
+      const { db } = await import("../../shared/api/mock-adapter");
+      if (!db.users.some(u => u.id === currentUserId)) {
+        db.users.push(newUser);
+      }
       // 登录它
       useAuthStore.getState().login(phone, idCard.substring(12));
     }

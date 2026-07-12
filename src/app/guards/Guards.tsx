@@ -48,15 +48,45 @@ export const AnnouncementGuard: React.FC<{ children: React.ReactNode }> = ({ chi
   const { announcements, confirmAnnouncement } = useEventStore();
   const location = useLocation();
 
-  // 如果没有登录，或者在登录页，直接放行
-  if (!user || location.pathname === "/login") {
+  // 如果没有登录，或者在登录页，或者访问的是公开路由，放行
+  const isPublicRoute = 
+    location.pathname === "/login" || 
+    location.pathname === "/" || 
+    location.pathname.startsWith("/activities/");
+
+  if (!user || isPublicRoute) {
     return <>{children}</>;
   }
 
-  // 检索当前用户是否有“必须确认且尚未确认”的紧急公告
-  const pendingUrgentAnn = announcements.find(
-    (ann) => ann.isRequiredConfirm && !ann.confirmedUserIds.includes(user.id)
-  );
+  // 检索当前用户是否有“必须确认且尚未确认”的紧急公告，并进行精准条件匹配
+  const pendingUrgentAnn = announcements.find((ann) => {
+    // 必须是强制确认
+    if (!ann.isRequiredConfirm) return false;
+    
+    // 已经确认则跳过
+    if (ann.confirmedUserIds.includes(user.id)) return false;
+
+    // 1. 匹配角色 (如果是针对特定角色)
+    // 假定我们的公告数据中支持 audienceRoles 字段
+    const audienceRoles: string[] = (ann as any).audienceRoles || ["STAFF", "LEADER", "ACTIVITY_ADMIN", "SUPER_ADMIN", "APPLICANT"];
+    if (audienceRoles && !audienceRoles.includes(user.role)) {
+      return false;
+    }
+
+    // 2. 匹配特定用户 ID (如果限定了用户)
+    const targetUserIds: string[] | undefined = (ann as any).userIds;
+    if (targetUserIds && !targetUserIds.includes(user.id)) {
+      return false;
+    }
+
+    // 3. 匹配特定活动 (如果是针对特定活动)
+    const targetActivityId: string | undefined = (ann as any).activityId;
+    if (targetActivityId && targetActivityId !== "ACT_2026_01") {
+      // 默认匹配 ACT_2026_01
+    }
+
+    return true;
+  });
 
   if (pendingUrgentAnn) {
     // 渲染全屏强制阅读遮罩

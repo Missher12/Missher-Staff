@@ -94,6 +94,7 @@ export interface Application {
   status: ApplicationStatus;
   interviewStatus: InterviewStatus;
   employmentStatus: EmploymentStatus;
+  interviewSlotId?: string; // 已预约的面试场次ID
   idCardPhoto?: string; // 证件照
   submittedAt: string;
   comment?: string; // 审批意见
@@ -178,4 +179,252 @@ export interface PaginatedResponse<T> {
   pageSize: number;
   total: number;
   totalPages: number;
+}
+
+// 15. 新增业务类型
+export type ActivityStatus = "PLANNING" | "RECRUITING" | "INTERVIEWING" | "ONGOING" | "COMPLETED";
+
+export type ActivityStage = "PREPARATION" | "RECRUITMENT" | "INTERVIEW" | "ADMISSION" | "EXHIBITION" | "CLOSED";
+
+export interface PersonProfile {
+  id: string;
+  userId: string;
+  name: string;
+  phone: string;
+  idCard: string;
+  gender: "MALE" | "FEMALE";
+  avatar?: string;
+  email?: string;
+  bankCard?: string;
+  bankName?: string;
+  bankBranch?: string;
+  experienceSummary?: string;
+  tags?: string[];
+  createdAt: string;
+}
+
+export interface DynamicFormField {
+  id: string;
+  name: string;
+  label: string;
+  type: "text" | "textarea" | "phone" | "idcard" | "bankcard" | "date" | "time" | "number" | "select" | "checkbox" | "radio" | "image" | "file";
+  required: boolean;
+  placeholder?: string;
+  options?: string[]; // for select, checkbox, radio
+  description?: string;
+  isProfileField: boolean; // whether to sync to PersonProfile
+  allowModifyBySelf: boolean; // whether applicant can modify it after submission
+  visibleToLeader: boolean; // whether group leaders can see it
+  isSensitive: boolean; // whether to mask/desensitize
+}
+
+export interface DynamicForm {
+  id: string;
+  activityId: string;
+  fields: DynamicFormField[];
+  createdAt: string;
+}
+
+export interface ApplicationAnswer {
+  fieldId: string;
+  fieldName: string;
+  value: string; // JSON or plain string depending on field type
+}
+
+export interface InterviewBooking {
+  id: string;
+  applicationId: string;
+  userId: string;
+  slotId: string;
+  bookedAt: string;
+  status: "BOOKED" | "ATTENDED" | "CANCELLED";
+}
+
+export interface InterviewCheckin {
+  id: string;
+  slotId: string;
+  userId: string;
+  operatorId: string;
+  checkinTime: string;
+  qrToken: string;
+}
+
+export interface InterviewReview {
+  id: string;
+  applicationId: string;
+  userId: string;
+  leaderId: string;
+  score: number; // 1-5 or 1-100
+  rating: "RECOMMENDED" | "WAITING" | "NOT_RECOMMENDED";
+  comment: string;
+  reviewedAt: string;
+}
+
+export interface AdmissionDecision {
+  id: string;
+  applicationId: string;
+  userId: string;
+  activityId: string;
+  groupId?: string;
+  positionId?: string;
+  assignedDates: string[];
+  status: "PENDING" | "EMPLOYED" | "REJECTED";
+  operatorId: string;
+  decidedAt: string;
+}
+
+export interface GroupMembership {
+  id: string;
+  userId: string;
+  activityId: string;
+  groupId: string;
+  positionId: string;
+  isMainLeader: boolean;
+  isDeputyLeader: boolean;
+  isNormalLeader: boolean;
+  assignedDates: string[];
+}
+
+export interface RoleAssignment {
+  id: string;
+  userId: string;
+  activityId: string;
+  role: Role;
+  assignedAt: string;
+}
+
+export interface LeaderPermission {
+  id: string;
+  userId: string;
+  activityId: string;
+  groupId: string;
+  canScanInterview: boolean;
+  canReviewInterview: boolean;
+  canApproveLeave: boolean;
+  canSuggestCorrection: boolean;
+  canSuggestTransfer: boolean;
+}
+
+export interface PositionAssignment {
+  id: string;
+  userId: string;
+  activityId: string;
+  positionId: string;
+  positionName: string;
+}
+
+export interface StaffDateAssignment {
+  id: string;
+  userId: string;
+  activityId: string;
+  date: string; // "2026-07-11"
+}
+
+export interface AttendanceRule {
+  id: string;
+  activityId: string;
+  lat: number;
+  lng: number;
+  radius: number; // in meters (e.g., 200m)
+  checkInStart: string; // "07:30:00"
+  checkInEnd: string; // "09:00:00"
+  checkOutStart: string; // "17:30:00"
+  checkOutEnd: string; // "21:00:00"
+}
+
+export interface AttendanceRisk {
+  id: string;
+  attendanceId: string;
+  riskType: "GEO_OUT_OF_BOUNDS" | "MOCK_LOCATION" | "CAMERA_FRAUD" | "DEVICE_RISK";
+  description: string;
+  level: "MEDIUM" | "HIGH";
+  detectedAt: string;
+}
+
+export interface AttendanceCorrection {
+  id: string;
+  attendanceId: string;
+  operatorId: string;
+  operatorName: string;
+  originalStatus: AttendanceStatus;
+  newStatus: AttendanceStatus;
+  originalTime?: string;
+  newTime?: string;
+  reason: string;
+  correctedAt: string;
+}
+
+export interface CorrectionSuggestion {
+  id: string;
+  attendanceId: string;
+  leaderId: string;
+  leaderName: string;
+  suggestedStatus: AttendanceStatus;
+  suggestedTime?: string;
+  type: "CHECK_IN" | "CHECK_OUT";
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  processedBy?: string;
+  processedAt?: string;
+}
+
+export type LeaveType = "SICK" | "PERSONAL" | "OTHER";
+
+export interface LeaveRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  activityId: string;
+  date: string; // "2026-07-11"
+  type: LeaveType;
+  reason: string;
+  proofPhoto?: string;
+  status: "PENDING_LEADER" | "PENDING_ADMIN" | "APPROVED" | "REJECTED";
+  leaderId?: string;
+  leaderComment?: string;
+  adminId?: string;
+  adminComment?: string;
+  submittedAt: string;
+}
+
+export interface InviteLink {
+  id: string;
+  activityId: string;
+  groupId: string;
+  creatorId: string;
+  code: string;
+  maxUses: number;
+  usedCount: number;
+  expireAt: string;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AnnouncementReceipt {
+  id: string;
+  announcementId: string;
+  userId: string;
+  confirmedAt: string;
+}
+
+export interface AuditLog {
+  id: string;
+  operatorId: string;
+  operatorName: string;
+  operatorRole: Role;
+  action: string; // e.g. "APPROVE_APPLICATION"
+  targetType: string; // e.g. "Application"
+  targetId: string;
+  description: string;
+  ipAddress?: string;
+  createdAt: string;
 }

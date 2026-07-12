@@ -2,15 +2,15 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { 
-  LayoutDashboard, Users, Calendar, BarChart2, 
-  LogOut, ShieldAlert, Laptop, UserCheck, Menu, X
+  ShieldCheck, CalendarRange, Users2, Settings, 
+  History, HeartPulse, LogOut, Laptop, Menu, X
 } from "lucide-react";
 
-interface AdminLayoutProps {
+interface SuperAdminLayoutProps {
   children: React.ReactNode;
 }
 
-export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({ children }) => {
   const { user, loginAsRole, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,14 +22,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   };
 
   const navItems = [
-    { path: "/admin/dashboard", label: "活动大盘", icon: <LayoutDashboard size={18} /> },
-    { path: "/admin/applications", label: "报名审核", icon: <Users size={18} /> },
-    { path: "/admin/interviews", label: "面试场次", icon: <Calendar size={18} /> },
-    { path: "/admin/attendance/realtime", label: "实时考勤", icon: <BarChart2 size={18} /> },
-    { path: "/admin/groups", label: "小组岗位", icon: <Users size={18} /> },
-    { path: "/admin/leave", label: "请假审批", icon: <UserCheck size={18} /> },
-    { path: "/admin/announcements", label: "公告发布", icon: <LayoutDashboard size={18} /> },
-    { path: "/admin/imports", label: "导入导出", icon: <Laptop size={18} /> },
+    { path: "/super-admin/dashboard", label: "全局运营大盘", icon: <ShieldCheck size={18} /> },
+    { path: "/super-admin/activities", label: "活动全周期管理", icon: <CalendarRange size={18} /> },
+    { path: "/super-admin/administrators", label: "考务管理员授权", icon: <Users2 size={18} /> },
+    { path: "/super-admin/global-settings", label: "全局防作弊参数", icon: <Settings size={18} /> },
+    { path: "/super-admin/audit-logs", label: "超级安全审计日志", icon: <History size={18} /> },
+    { path: "/super-admin/system-health", label: "集群容器状态监控", icon: <HeartPulse size={18} /> },
   ];
 
   const demoRoles = [
@@ -43,29 +41,29 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const sidebarContent = (
     <div className="h-full flex flex-col justify-between p-4">
       <div className="space-y-6">
-        {/* Logo */}
+        {/* Logo and title */}
         <div className="flex items-center gap-2.5 px-3 py-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#0A84FF] to-[#BF5AF2] flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#BF5AF2] to-[#FF453A] flex items-center justify-center text-white font-extrabold text-sm shadow-md">
             S
           </div>
           <div>
-            <h1 className="font-semibold text-sm leading-none">STAFF 管理系统</h1>
-            <span className="text-[10px] text-[#86868B] font-medium tracking-wide uppercase mt-1 block">Convention Pro</span>
+            <h1 className="font-extrabold text-sm leading-none text-[#1D1D1F]">SUPER ADMIN</h1>
+            <span className="text-[9px] text-[#BF5AF2] font-bold tracking-wider uppercase mt-1 block">全局超级会务核准</span>
           </div>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation list */}
         <nav className="space-y-1">
           {navItems.map((item) => {
-            const active = location.pathname === item.path || (item.path === "/admin/applications" && location.pathname.startsWith("/admin/applications/"));
+            const active = location.pathname === item.path || (item.path !== "/super-admin/dashboard" && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                   active 
-                    ? "bg-[#0A84FF] text-white shadow-sm shadow-[#0A84FF]/20" 
+                    ? "bg-[#BF5AF2] text-white shadow-md shadow-[#BF5AF2]/20" 
                     : "text-[#1D1D1F]/80 hover:bg-black/5 hover:text-[#1D1D1F]"
                 }`}
               >
@@ -77,11 +75,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </nav>
       </div>
 
-      {/* 体验账号快捷切换面板 (开发测试用) */}
+      {/* Quick switcher and User bar */}
       <div className="space-y-4">
-        <div className="p-3 bg-slate-50 border border-black/5 rounded-[18px] space-y-1.5">
-          <span className="text-[10px] font-bold text-[#86868B] tracking-wide block flex items-center gap-1">
-            <Laptop size={11} className="text-[#0A84FF]" /> 快速体验切换
+        <div className="p-3 bg-zinc-50 border border-black/5 rounded-[18px] space-y-1.5">
+          <span className="text-[9px] font-bold text-[#86868B] tracking-wide block flex items-center gap-1">
+            <Laptop size={11} className="text-[#BF5AF2]" /> 沙盒快速切换
           </span>
           <div className="grid grid-cols-2 gap-1">
             {demoRoles.map((dr) => (
@@ -94,12 +92,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                   else if (dr.role === "STAFF" || dr.role === "LEADER") navigate("/staff/dashboard");
                   else navigate("/admin/dashboard");
                 }}
-                className={`px-1.5 py-1 text-[9px] font-semibold rounded-md border text-left truncate transition-all cursor-pointer ${
+                className={`px-1.5 py-1 text-[8px] font-extrabold rounded-md border text-left truncate transition-all ${
                   user?.role === dr.role
-                    ? "bg-[#0A84FF]/10 text-[#0A84FF] border-[#0A84FF]"
+                    ? "bg-[#BF5AF2]/10 text-[#BF5AF2] border-[#BF5AF2]"
                     : "bg-white border-black/5 hover:bg-slate-100"
                 }`}
-                title={`切换到 ${dr.label} 角色`}
               >
                 ● {dr.label}
               </button>
@@ -107,16 +104,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           </div>
         </div>
 
-        {/* User profile section */}
         <div className="pt-4 border-t border-black/5 flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-slate-100 border border-black/5 flex items-center justify-center font-bold text-xs text-[#0A84FF] overflow-hidden shrink-0">
-              {user?.avatar ? <img src={user.avatar} className="w-full h-full object-cover" alt="" /> : user?.name.charAt(0)}
+            <div className="w-8 h-8 rounded-full bg-purple-50 border border-purple-100 flex items-center justify-center font-extrabold text-xs text-[#BF5AF2] overflow-hidden shrink-0">
+              {user?.avatar ? <img src={user.avatar} className="w-full h-full object-cover" alt="" /> : "超"}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold truncate leading-tight">{user?.name}</p>
-              <span className="text-[10px] text-[#86868B] font-medium leading-none mt-0.5 block truncate">
-                {user?.role === "SUPER_ADMIN" ? "超级管理员" : "活动管理员"}
+              <p className="text-xs font-bold truncate leading-tight">{user?.name || "超级管理员"}</p>
+              <span className="text-[9px] text-[#BF5AF2] font-semibold leading-none mt-0.5 block truncate">
+                SUPER_ADMIN
               </span>
             </div>
           </div>
@@ -134,7 +130,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] font-sans flex overflow-hidden">
-      {/* 1. 左侧 Sidebar - Mac 设计 */}
+      {/* 1. Desktop Sidebar */}
       <aside className="w-[240px] border-r border-black/6 bg-white/80 backdrop-blur-xl shrink-0 hidden md:block">
         {sidebarContent}
       </aside>
@@ -142,10 +138,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       {/* 2. Responsive Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
+          {/* Backdrop */}
           <div 
             className="fixed inset-0 bg-black/20 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
+          {/* Drawer Panel */}
           <div className="relative w-[240px] h-full bg-white flex flex-col z-10 shadow-2xl animate-slide-in">
             <button 
               onClick={() => setMobileMenuOpen(false)}
@@ -158,9 +156,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </div>
       )}
 
-      {/* 3. 右侧 Content Area */}
+      {/* 3. Right Content Column */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {/* Top Header */}
+        {/* Header bar */}
         <header className="h-[68px] border-b border-black/6 bg-white/80 backdrop-blur-xl flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-3">
             <button 
@@ -169,19 +167,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             >
               <Menu size={18} />
             </button>
-            <div className="px-3 py-1 bg-green-50 border border-green-100 rounded-full text-[10px] font-semibold text-[#30D158] flex items-center gap-1">
-              <UserCheck size={11} /> 前端 Mock 沙盒已就绪
+            <div className="px-3 py-1 bg-purple-50 border border-purple-100 rounded-full text-[10px] font-bold text-[#BF5AF2] flex items-center gap-1.5 animate-pulse">
+              <ShieldCheck size={12} /> 超管底层超级视图已激活
             </div>
           </div>
           
           <div className="flex items-center gap-4 text-xs font-semibold text-[#1D1D1F]">
-            <span>当前会场: 杭州国际博览中心</span>
+            <span>全局会场数: 12 个地区</span>
             <div className="h-4 w-px bg-zinc-200" />
-            <span className="text-[#86868B]">11:59 (系统时间)</span>
+            <span className="text-zinc-500 font-mono">ROOT CONTROL</span>
           </div>
         </header>
 
-        {/* Main Content Area */}
+        {/* Scrollable page body */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
           {children}
         </main>

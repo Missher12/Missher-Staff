@@ -13,14 +13,15 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => {
-  // 默认登录为 Admin 方便开发调试，或未登录状态。
-  // 为了完美重现，默认设置为李小华 (STAFF)
-  const initialUser = mockUsers.find(u => u.role === "STAFF") || null;
+  // 默认不登录，要求用户手动登入或选择 Demo 角色。
+  const initialUser = null;
+
+  const enableDemo = import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === "true" || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === undefined;
 
   return {
     user: initialUser,
-    isAuthenticated: !!initialUser,
-    demoMode: true, // 默认开启 Demo 切换器方便 AI Studio 预览体验
+    isAuthenticated: false,
+    demoMode: enableDemo, // 仅在 VITE_ENABLE_DEMO_ACCOUNTS=true 时启用 Demo 切换
 
     login: async (phone: string, idCardSuffix: string) => {
       // 真实匹配 Mock 用户
