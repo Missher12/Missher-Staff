@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../app/stores/authStore";
 import { useEventStore } from "../../app/stores/eventStore";
-import { MobileLayout } from "../../app/layouts/MobileLayout";
+import { ApplicantLayout } from "../../app/layouts/ApplicantLayout";
 import { QRCodeDisplay } from "../../shared/ui";
 import { ArrowLeft, CheckCircle2, RefreshCw } from "lucide-react";
 
@@ -20,9 +20,8 @@ export const InterviewQrCode: React.FC = () => {
   const mockTokenVal = `INTERVIEW_CONF_USER:${user?.id}_TIME:${Date.now().toString().substring(0, 10)}`;
 
   return (
-    <MobileLayout 
+    <ApplicantLayout 
       title="面试登记电子凭证" 
-      onBack={() => navigate("/applicant/dashboard")}
     >
       <div className="space-y-6">
         {/* Intro */}
@@ -90,6 +89,6 @@ export const InterviewQrCode: React.FC = () => {
           正式环境二维码令牌基于 JWT 防伪算法。由于现场可能存在网络信号堵塞，请勿提前 5 分钟外截屏，倒计时将保证现场鉴权安全。
         </div>
       </div>
-    </MobileLayout>
+    </ApplicantLayout>
   );
 };

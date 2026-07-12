@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../app/stores/authStore";
 import { useEventStore } from "../../app/stores/eventStore";
-import { MobileLayout } from "../../app/layouts/MobileLayout";
+import { ApplicantLayout } from "../../app/layouts/ApplicantLayout";
 import { StatusBadge } from "../../shared/ui";
-import { Calendar, Bell, ChevronRight, QrCode, ClipboardList, Clock } from "lucide-react";
+import { Calendar, Bell, ChevronRight, QrCode, ClipboardList, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 
 export const ApplicantDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -16,6 +16,7 @@ export const ApplicantDashboard: React.FC = () => {
   const activeApp = myApps[0]; // 拿最新一条
 
   const [bookingLoading, setBookingLoading] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const handleBookSlot = async (slotId: string) => {
     if (!activeApp) return;
@@ -24,16 +25,35 @@ export const ApplicantDashboard: React.FC = () => {
       const success = await bookInterview(activeApp.id, slotId);
       setBookingLoading(null);
       if (success) {
-        alert("面试预约成功！请妥善保存您的面试二维码凭证并在入场时签到。");
+        setMessage({
+          type: "success",
+          text: "面试预约成功！请妥善保存您的面试二维码凭证并在入场时签到。",
+        });
+        setTimeout(() => setMessage(null), 5000);
       } else {
-        alert("预约失败，该场次名额已满或已被取消");
+        setMessage({
+          type: "error",
+          text: "预约失败，该场次名额已满或已被取消",
+        });
+        setTimeout(() => setMessage(null), 5000);
       }
     }, 600);
   };
 
   return (
-    <MobileLayout title="报名进程大厅">
+    <ApplicantLayout title="报名进程大厅">
       <div className="space-y-5">
+        {message && (
+          <div className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2 animate-scale-up border ${
+            message.type === "success" 
+              ? "bg-green-50 border-green-200 text-[#30D158]" 
+              : "bg-red-50 border-red-200 text-[#FF453A]"
+          }`}>
+            {message.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            <span>{message.text}</span>
+          </div>
+        )}
+
         {/* 1. 顶部迎宾卡片 */}
         <div className="p-5 bg-gradient-to-tr from-[#0A84FF] to-[#BF5AF2] rounded-[22px] text-white shadow-sm relative">
           <div className="absolute top-4 right-4 text-white/20">
@@ -162,6 +182,6 @@ export const ApplicantDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-    </MobileLayout>
+    </ApplicantLayout>
   );
 };

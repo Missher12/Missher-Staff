@@ -7,7 +7,23 @@ import { RouteConfig } from "./public.routes";
 
 export const applicantRoutes: RouteConfig[] = [
   { 
-    path: "/applicant", 
+    path: "/applicant/dashboard", 
+    element: (
+      <RoleGuard allowedRoles={["APPLICANT"]}>
+        <ApplicantDashboard />
+      </RoleGuard>
+    )
+  },
+  { 
+    path: "/applicant/application", 
+    element: (
+      <RoleGuard allowedRoles={["APPLICANT"]}>
+        <ApplicantDashboard />
+      </RoleGuard>
+    )
+  },
+  { 
+    path: "/applicant/application-status", 
     element: (
       <RoleGuard allowedRoles={["APPLICANT"]}>
         <ApplicantDashboard />
@@ -31,7 +47,7 @@ export const applicantRoutes: RouteConfig[] = [
     )
   },
   { 
-    path: "/applicant/qrcode", 
+    path: "/applicant/interview-qrcode", 
     element: (
       <RoleGuard allowedRoles={["APPLICANT"]}>
         <InterviewQrCode />
@@ -43,6 +59,14 @@ export const applicantRoutes: RouteConfig[] = [
     element: (
       <RoleGuard allowedRoles={["APPLICANT"]}>
         <ApplicantNotifications />
+      </RoleGuard>
+    )
+  },
+  { 
+    path: "/applicant/history", 
+    element: (
+      <RoleGuard allowedRoles={["APPLICANT"]}>
+        <ApplicantDashboard />
       </RoleGuard>
     )
   },

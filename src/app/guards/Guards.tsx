@@ -30,8 +30,12 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) 
     // 角色不符，重定向到他们应该去的首页
     if (user.role === "APPLICANT") {
       return <Navigate to="/applicant/dashboard" replace />;
-    } else if (user.role === "STAFF" || user.role === "LEADER") {
+    } else if (user.role === "STAFF") {
       return <Navigate to="/staff/dashboard" replace />;
+    } else if (user.role === "LEADER") {
+      return <Navigate to="/leader/dashboard" replace />;
+    } else if (user.role === "SUPER_ADMIN") {
+      return <Navigate to="/super-admin/dashboard" replace />;
     } else {
       return <Navigate to="/admin/dashboard" replace />;
     }

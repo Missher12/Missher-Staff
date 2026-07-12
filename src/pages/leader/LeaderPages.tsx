@@ -444,3 +444,234 @@ export const LeaderCorrectionSuggestions: React.FC = () => {
     </LeaderLayout>
   );
 };
+
+// ==========================================
+// 6. LeaderAttendance (考勤底片归档)
+// ==========================================
+export const LeaderAttendance: React.FC = () => {
+  const { attendanceRecords } = useEventStore();
+  const [filter, setFilter] = useState<"ALL" | "NORMAL" | "LATE" | "ABSENT">("ALL");
+
+  const filteredRecords = attendanceRecords.filter(r => 
+    filter === "ALL" || r.status === filter
+  );
+
+  return (
+    <LeaderLayout title="组员考勤底片与归档">
+      <div className="space-y-4">
+        {/* Filters */}
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+          {(["ALL", "NORMAL", "LATE", "ABSENT"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                filter === f 
+                  ? "bg-white text-zinc-900 shadow-sm" 
+                  : "text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              {f === "ALL" ? "全部" : f === "NORMAL" ? "正常" : f === "LATE" ? "迟到" : "缺勤"}
+            </button>
+          ))}
+        </div>
+
+        {/* List of attendance records */}
+        <div className="space-y-2.5">
+          {filteredRecords.length === 0 ? (
+            <div className="text-center py-10 bg-white border border-black/5 rounded-[22px] text-zinc-400 text-xs font-medium">
+              无符合筛选条件的考勤记录
+            </div>
+          ) : (
+            filteredRecords.map((record) => (
+              <div key={record.id} className="bg-white border border-black/5 rounded-[22px] p-4 shadow-sm space-y-3 animate-scale-up">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-sm font-extrabold text-[#1D1D1F]">{record.userName}</h4>
+                    <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{record.positionName}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                    record.status === "NORMAL" 
+                      ? "bg-green-50 text-[#30D158]" 
+                      : "bg-orange-50 text-[#FF9F0A]"
+                  }`}>
+                    {record.status === "NORMAL" ? "正常" : "异常"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 text-xs font-semibold">
+                  <div className="p-2.5 bg-slate-50 border border-black/5 rounded-xl">
+                    <span className="text-[9px] text-zinc-400 block mb-0.5">签到打卡</span>
+                    <span className="text-zinc-800">{record.checkInTime || "（未打卡）"}</span>
+                    {record.checkInDistance !== undefined && (
+                      <span className="text-[9px] text-zinc-400 block mt-1 font-mono">偏差: {record.checkInDistance} 米</span>
+                    )}
+                  </div>
+                  <div className="p-2.5 bg-slate-50 border border-black/5 rounded-xl">
+                    <span className="text-[9px] text-zinc-400 block mb-0.5">签退打卡</span>
+                    <span className="text-zinc-800">{record.checkOutTime || "（未打卡）"}</span>
+                    {record.checkOutDistance !== undefined && (
+                      <span className="text-[9px] text-zinc-400 block mt-1 font-mono">偏差: {record.checkOutDistance} 米</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </LeaderLayout>
+  );
+};
+
+// ==========================================
+// 7. LeaderInterviewReviews (面试录用审核)
+// ==========================================
+export const LeaderInterviewReviews: React.FC = () => {
+  const { applications } = useEventStore();
+  
+  // Pending interview / review applicants
+  const pendingCandidates = applications.filter(a => a.status === "SUBMITTED" || a.status === "INTERVIEWED");
+
+  return (
+    <LeaderLayout title="面试候选人审核">
+      <div className="space-y-3">
+        <span className="text-[10px] font-extrabold text-[#86868B] uppercase tracking-wider block">等待录用初审的候选人</span>
+        {pendingCandidates.length === 0 ? (
+          <div className="text-center py-10 bg-white border border-black/5 rounded-[22px] text-zinc-400 text-xs font-medium">
+            暂无等待审核的候选人
+          </div>
+        ) : (
+          pendingCandidates.map((c) => (
+            <div key={c.id} className="bg-white border border-black/5 rounded-[22px] p-4.5 shadow-sm space-y-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="text-sm font-bold text-[#1D1D1F]">{c.userName}</h4>
+                  <p className="text-[10px] text-zinc-400 font-mono mt-0.5">意向岗位: {c.targetPositions.join(", ")}</p>
+                </div>
+                <span className="px-2 py-0.5 bg-blue-50 text-[#0A84FF] rounded-full text-[9px] font-black">
+                  {c.status === "SUBMITTED" ? "已报名待面" : "面试完待定"}
+                </span>
+              </div>
+              {c.comment && (
+                <div className="p-2.5 bg-slate-50 rounded-xl text-[11px] text-zinc-600 font-medium leading-relaxed">
+                  <strong>组长面评：</strong>{c.comment}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </LeaderLayout>
+  );
+};
+
+// ==========================================
+// 8. LeaderInviteLinks (生成注册邀请码)
+// ==========================================
+export const LeaderInviteLinks: React.FC = () => {
+  const [links, setLinks] = useState([
+    { id: "L_LINK_01", groupName: "舞台控场组", role: "STAFF", code: "STAGE_STAFF_INV_X7", expiredAt: "2026-07-20", count: 12 }
+  ]);
+  const [message, setMessage] = useState("");
+
+  const generateLink = () => {
+    const newCode = `STAGE_STAFF_INV_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    setLinks(prev => [
+      ...prev,
+      {
+        id: `L_LINK_${Date.now()}`,
+        groupName: "舞台控场组",
+        role: "STAFF",
+        code: newCode,
+        expiredAt: "2026-07-25",
+        count: 0
+      }
+    ]);
+    setMessage("成功生成一条全新 STAFF 注册邀请码！已自动同步分发至云数据库中。");
+    setTimeout(() => setMessage(""), 4000);
+  };
+
+  return (
+    <LeaderLayout title="生成组员注册专属邀请码">
+      <div className="space-y-4">
+        {message && (
+          <div className="p-3.5 bg-green-50 border border-green-200 rounded-2xl text-xs text-[#30D158] font-bold">
+            💡 {message}
+          </div>
+        )}
+
+        <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-[#1D1D1F]">快捷邀请规则</h3>
+            <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
+              动漫展现场由于人员流动巨大，组长可在此直接生成小组专属注册码。通过该码注册的用户，其系统级别将自动晋升为 <b>STAFF 级别</b> 且免审加入您的“舞台控场组”。
+            </p>
+          </div>
+
+          <button
+            onClick={generateLink}
+            className="w-full py-3 bg-[#FF9F0A] text-white text-xs font-bold rounded-full hover:bg-[#FF9F0A]/95 transition-all cursor-pointer text-center"
+          >
+            + 立即生成本组专属 STAFF 注册码
+          </button>
+        </div>
+
+        <div className="space-y-2.5">
+          <span className="text-[10px] font-extrabold text-[#86868B] uppercase tracking-wider block">我已生成的邀请码</span>
+          
+          {links.map((link) => (
+            <div key={link.id} className="bg-white border border-black/5 rounded-2xl p-4 flex justify-between items-center text-xs">
+              <div>
+                <p className="font-bold text-[#1D1D1F] font-mono select-all bg-zinc-50 border border-black/5 px-2 py-1 rounded-lg inline-block">{link.code}</p>
+                <p className="text-[10px] text-zinc-400 mt-1 font-semibold">加入角色: {link.role} | 目标小组: {link.groupName}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-black text-[#FF9F0A] font-mono">{link.count} 人已用</span>
+                <p className="text-[9px] text-zinc-400 font-semibold mt-0.5">有效期至 {link.expiredAt}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </LeaderLayout>
+  );
+};
+
+// ==========================================
+// 9. LeaderTransferSuggestions (异动调岗)
+// ==========================================
+export const LeaderTransferSuggestions: React.FC = () => {
+  return <LeaderCorrectionSuggestions />;
+};
+
+// ==========================================
+// 10. LeaderAnnouncements (组长公告消息)
+// ==========================================
+export const LeaderAnnouncements: React.FC = () => {
+  const { announcements } = useEventStore();
+  const leaderAnnouncements = announcements.filter(a => a.targetRole === "ALL" || a.targetRole === "LEADER");
+
+  return (
+    <LeaderLayout title="组长及展务通知公告">
+      <div className="space-y-3">
+        <span className="text-[10px] font-extrabold text-[#86868B] uppercase tracking-wider block">组长专用通知及展务动态</span>
+        {leaderAnnouncements.length === 0 ? (
+          <div className="text-center py-10 bg-white border border-black/5 rounded-[22px] text-zinc-400 text-xs font-medium">
+            暂无面向组长层级的公告
+          </div>
+        ) : (
+          leaderAnnouncements.map((a) => (
+            <div key={a.id} className="bg-white border border-black/5 rounded-[22px] p-4.5 shadow-sm space-y-2">
+              <div className="flex justify-between items-center">
+                <h4 className="text-xs font-bold text-[#1D1D1F]">{a.title}</h4>
+                <span className="text-[9px] text-zinc-400 font-mono">{a.createdAt}</span>
+              </div>
+              <p className="text-[11px] text-zinc-600 font-medium leading-relaxed">{a.content}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </LeaderLayout>
+  );
+};

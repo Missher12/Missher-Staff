@@ -11,7 +11,7 @@ import { RouteConfig } from "./public.routes";
 
 export const staffRoutes: RouteConfig[] = [
   { 
-    path: "/staff", 
+    path: "/staff/dashboard", 
     element: (
       <RoleGuard allowedRoles={["STAFF"]}>
         <StaffDashboard />
@@ -19,7 +19,7 @@ export const staffRoutes: RouteConfig[] = [
     )
   },
   { 
-    path: "/staff/checkin", 
+    path: "/staff/attendance/check", 
     element: (
       <RoleGuard allowedRoles={["STAFF"]}>
         <AttendanceCheck />
@@ -27,7 +27,15 @@ export const staffRoutes: RouteConfig[] = [
     )
   },
   { 
-    path: "/staff/history", 
+    path: "/staff/attendance", 
+    element: (
+      <RoleGuard allowedRoles={["STAFF"]}>
+        <AttendanceHistory />
+      </RoleGuard>
+    )
+  },
+  { 
+    path: "/staff/attendance/:attendanceId", 
     element: (
       <RoleGuard allowedRoles={["STAFF"]}>
         <AttendanceHistory />
@@ -43,7 +51,7 @@ export const staffRoutes: RouteConfig[] = [
     )
   },
   { 
-    path: "/staff/workdates", 
+    path: "/staff/work-dates", 
     element: (
       <RoleGuard allowedRoles={["STAFF"]}>
         <StaffWorkDates />

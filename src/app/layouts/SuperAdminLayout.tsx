@@ -89,7 +89,9 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({ children }) 
                   loginAsRole(dr.role);
                   setMobileMenuOpen(false);
                   if (dr.role === "APPLICANT") navigate("/applicant/dashboard");
-                  else if (dr.role === "STAFF" || dr.role === "LEADER") navigate("/staff/dashboard");
+                  else if (dr.role === "STAFF") navigate("/staff/dashboard");
+                  else if (dr.role === "LEADER") navigate("/leader/dashboard");
+                  else if (dr.role === "SUPER_ADMIN") navigate("/super-admin/dashboard");
                   else navigate("/admin/dashboard");
                 }}
                 className={`px-1.5 py-1 text-[8px] font-extrabold rounded-md border text-left truncate transition-all ${

@@ -30,7 +30,8 @@ export const LeaderLayout: React.FC<LeaderLayoutProps> = ({ children, title = "L
     { role: "APPLICANT", label: "报名" },
     { role: "STAFF", label: "员工" },
     { role: "LEADER", label: "组长" },
-    { role: "ACTIVITY_ADMIN", label: "管理" }
+    { role: "ACTIVITY_ADMIN", label: "主管" },
+    { role: "SUPER_ADMIN", label: "超管" }
   ] as const;
 
   return (
@@ -75,7 +76,9 @@ export const LeaderLayout: React.FC<LeaderLayoutProps> = ({ children, title = "L
               onClick={() => {
                 loginAsRole(dr.role);
                 if (dr.role === "APPLICANT") navigate("/applicant/dashboard");
-                else if (dr.role === "STAFF" || dr.role === "LEADER") navigate("/staff/dashboard");
+                else if (dr.role === "STAFF") navigate("/staff/dashboard");
+                else if (dr.role === "LEADER") navigate("/leader/dashboard");
+                else if (dr.role === "SUPER_ADMIN") navigate("/super-admin/dashboard");
                 else navigate("/admin/dashboard");
               }}
               className={`px-2 py-1 text-[9px] font-semibold rounded-lg border transition-all cursor-pointer whitespace-nowrap ${

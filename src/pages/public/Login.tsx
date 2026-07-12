@@ -29,8 +29,12 @@ export const Login: React.FC = () => {
         const currentRole = useAuthStore.getState().user?.role;
         if (currentRole === "APPLICANT") {
           navigate("/applicant/dashboard");
-        } else if (currentRole === "STAFF" || currentRole === "LEADER") {
+        } else if (currentRole === "STAFF") {
           navigate("/staff/dashboard");
+        } else if (currentRole === "LEADER") {
+          navigate("/leader/dashboard");
+        } else if (currentRole === "SUPER_ADMIN") {
+          navigate("/super-admin/dashboard");
         } else {
           navigate("/admin/dashboard");
         }
@@ -48,8 +52,12 @@ export const Login: React.FC = () => {
     loginAsRole(role);
     if (role === "APPLICANT") {
       navigate("/applicant/dashboard");
-    } else if (role === "STAFF" || role === "LEADER") {
+    } else if (role === "STAFF") {
       navigate("/staff/dashboard");
+    } else if (role === "LEADER") {
+      navigate("/leader/dashboard");
+    } else if (role === "SUPER_ADMIN") {
+      navigate("/super-admin/dashboard");
     } else {
       navigate("/admin/dashboard");
     }
@@ -150,30 +158,41 @@ export const Login: React.FC = () => {
             <span className="text-[10px] font-bold text-[#86868B] tracking-wider uppercase block mb-2.5 flex items-center gap-1">
               <UserCheck size={12} className="text-[#0A84FF]" /> 快速体验账号 (免密码直接登录)
             </span>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
               <button
+                type="button"
                 onClick={() => handleDemoClick("APPLICANT")}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-black/5 text-xs font-semibold text-[#1D1D1F] rounded-xl transition-colors cursor-pointer text-center"
+                className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 border border-black/5 text-xs font-semibold text-[#1D1D1F] rounded-xl transition-colors cursor-pointer text-center"
               >
-                林可儿 (报名者)
+                林可儿 (报名)
               </button>
               <button
+                type="button"
                 onClick={() => handleDemoClick("STAFF")}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-black/5 text-xs font-semibold text-[#1D1D1F] rounded-xl transition-colors cursor-pointer text-center"
+                className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 border border-black/5 text-xs font-semibold text-[#1D1D1F] rounded-xl transition-colors cursor-pointer text-center"
               >
-                李小华 (STAFF)
+                李小华 (员工)
               </button>
               <button
+                type="button"
                 onClick={() => handleDemoClick("LEADER")}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-black/5 text-xs font-semibold text-[#1D1D1F] rounded-xl transition-colors cursor-pointer text-center"
+                className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 border border-black/5 text-xs font-semibold text-[#1D1D1F] rounded-xl transition-colors cursor-pointer text-center"
               >
                 陈大伟 (组长)
               </button>
               <button
+                type="button"
                 onClick={() => handleDemoClick("ACTIVITY_ADMIN")}
-                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-[#0A84FF]/20 text-xs font-semibold text-[#0A84FF] rounded-xl transition-colors cursor-pointer text-center"
+                className="px-2.5 py-2 bg-blue-50 hover:bg-blue-100 border border-[#0A84FF]/20 text-xs font-semibold text-[#0A84FF] rounded-xl transition-colors cursor-pointer text-center"
               >
-                张晓明 (管理员)
+                张晓明 (主管)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDemoClick("SUPER_ADMIN")}
+                className="px-2.5 py-2 bg-purple-50 hover:bg-purple-100 border border-[#BF5AF2]/20 text-xs font-semibold text-[#BF5AF2] rounded-xl transition-colors cursor-pointer text-center col-span-2 md:col-span-1"
+              >
+                赵天成 (超管)
               </button>
             </div>
             

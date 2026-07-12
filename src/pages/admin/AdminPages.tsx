@@ -576,3 +576,369 @@ export const FormBuilder: React.FC = () => {
     </AdminLayout>
   );
 };
+
+// ==========================================
+// 5. AdminInterviews (面试评分)
+// ==========================================
+export const AdminInterviews: React.FC = () => {
+  const { applications } = useEventStore();
+  const [reviews, setReviews] = useState(applications.filter(a => a.status === "INTERVIEWED" || a.status === "SUBMITTED"));
+
+  const handleAction = (id: string, action: "APPROVED" | "REJECTED") => {
+    setReviews(prev => prev.filter(r => r.id !== id));
+    alert(action === "APPROVED" ? "已同意录取该 STAFF，身份已自动升级，系统已发出岗位邀约短信。" : "已拒绝，候选人信息已加入备用档案池。");
+  };
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="border-b border-black/5 pb-4">
+          <h2 className="text-xl font-bold text-[#1D1D1F]">面试评分与录用中心</h2>
+          <p className="text-xs text-[#86868B] font-medium mt-1">查看各小组长提交的现场面试打分和评语，进行 STAFF 最终录取核定。</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          {reviews.length === 0 ? (
+            <div className="text-center py-12 bg-white border border-black/5 rounded-[22px] text-zinc-400 text-xs font-semibold">
+              暂无等待终审录取核定的面试档案
+            </div>
+          ) : (
+            reviews.map((r) => (
+              <div key={r.id} className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4 animate-scale-up">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#1D1D1F]">{r.userName}</h3>
+                    <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">申请岗位：{r.targetPositions.join("、")}</p>
+                  </div>
+                  <span className="px-2.5 py-0.5 bg-amber-50 text-[#FF9F0A] rounded-full text-[10px] font-bold">
+                    组长评定: 推荐录用
+                  </span>
+                </div>
+
+                {r.comment && (
+                  <div className="p-3 bg-zinc-50 border border-black/5 rounded-xl text-xs text-zinc-600 leading-relaxed font-semibold">
+                    <strong>组长面评：</strong>{r.comment}
+                  </div>
+                )}
+
+                <div className="flex gap-2 justify-end">
+                  <button 
+                    onClick={() => handleAction(r.id, "APPROVED")}
+                    className="px-4 py-2 bg-[#30D158] hover:bg-[#30D158]/95 text-white text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    批准录用 (发放 STAFF 权限)
+                  </button>
+                  <button 
+                    onClick={() => handleAction(r.id, "REJECTED")}
+                    className="px-4 py-2 bg-red-50 border border-red-200 text-[#FF453A] text-xs font-bold rounded-xl hover:bg-red-100 transition-colors cursor-pointer"
+                  >
+                    暂不录取
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+
+// ==========================================
+// 6. AdminAttendanceRealtime (实时核销监控)
+// ==========================================
+export const AdminAttendanceRealtime: React.FC = () => {
+  const { attendanceRecords } = useEventStore();
+  const [records, setRecords] = useState(attendanceRecords);
+
+  const handleRefresh = () => {
+    setRecords([...attendanceRecords]);
+    alert("现场考勤GPS底片和双特征水印已实时拉取并完成秒级校对。");
+  };
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center border-b border-black/5 pb-4">
+          <div>
+            <h2 className="text-xl font-bold text-[#1D1D1F]">现场考勤实时监控与核销</h2>
+            <p className="text-xs text-[#86868B] font-medium mt-1">秒级监控漫展现场所有 STAFF 岗位打卡自拍，核验地理芯片偏差度。</p>
+          </div>
+          <button 
+            onClick={handleRefresh}
+            className="px-4 py-2 bg-[#0A84FF] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
+          >
+            实时核对底片
+          </button>
+        </div>
+
+        {/* Real-time statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white border border-black/5 rounded-2xl p-4">
+            <span className="text-[10px] font-bold text-zinc-400 block mb-1">今日出勤率</span>
+            <span className="text-2xl font-black text-[#30D158] font-mono">94.8%</span>
+          </div>
+          <div className="bg-white border border-black/5 rounded-2xl p-4">
+            <span className="text-[10px] font-bold text-zinc-400 block mb-1">正常在岗</span>
+            <span className="text-2xl font-black text-zinc-800 font-mono">32 人</span>
+          </div>
+          <div className="bg-white border border-black/5 rounded-2xl p-4">
+            <span className="text-[10px] font-bold text-zinc-400 block mb-1">定位异常警告</span>
+            <span className="text-2xl font-black text-[#FF9F0A] font-mono">2 人</span>
+          </div>
+          <div className="bg-white border border-black/5 rounded-2xl p-4">
+            <span className="text-[10px] font-bold text-zinc-400 block mb-1">异常照片</span>
+            <span className="text-2xl font-black text-[#FF453A] font-mono">0 张</span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <span className="text-[10px] font-extrabold text-[#86868B] uppercase tracking-wider block">最新实时打卡流水 feeds</span>
+          
+          <div className="grid grid-cols-1 gap-3.5">
+            {records.map((r) => (
+              <div key={r.id} className="bg-white border border-black/5 rounded-[22px] p-4.5 shadow-sm flex flex-col md:flex-row justify-between md:items-center gap-4 animate-scale-up">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-sm border border-black/5 text-[#0A84FF] overflow-hidden">
+                    {r.checkInPhoto ? (
+                      <img src={r.checkInPhoto} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      r.userName.charAt(0)
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-sm font-bold text-[#1D1D1F]">{r.userName}</h4>
+                      <span className="px-1.5 py-0.5 bg-slate-100 text-zinc-600 rounded text-[8px] font-bold">{r.groupName}</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">签到打卡时间：{r.checkInTime || "未打卡"}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:items-end text-xs">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-zinc-400 font-semibold">定位精度:</span>
+                    <span className={`font-mono font-bold ${
+                      (r.checkInDistance || 0) < 50 ? "text-[#30D158]" : "text-[#FF9F0A]"
+                    }`}>
+                      {r.checkInDistance !== undefined ? `${r.checkInDistance}米 (合规)` : "未采集"}
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-zinc-400 font-semibold mt-1">芯片基站：{r.checkInLocation || "未采集"}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+
+// ==========================================
+// 7. AdminAdmissions (特批直入)
+// ==========================================
+export const AdminAdmissions: React.FC = () => {
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="border-b border-black/5 pb-4">
+          <h2 className="text-xl font-bold text-[#1D1D1F]">特批免审录取中心</h2>
+          <p className="text-xs text-[#86868B] font-medium mt-1">对受邀漫展明星随行、VIP骨干或历史优秀STAFF进行一键特批免审录取。</p>
+        </div>
+
+        <div className="bg-white border border-black/5 rounded-[22px] p-6 text-center space-y-4 max-w-xl mx-auto shadow-sm">
+          <span className="p-3.5 bg-blue-50 text-[#0A84FF] rounded-full inline-block">
+            <UserCheck size={28} />
+          </span>
+          <h3 className="text-sm font-bold text-[#1D1D1F]">特批录入面板</h3>
+          <div className="space-y-3 text-left">
+            <div>
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">候选人手机号</label>
+              <input placeholder="请输入 11 位大陆有效手机号..." className="w-full p-3 bg-zinc-50 border border-black/5 rounded-2xl text-xs font-bold outline-none mt-1" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">特批录用事由</label>
+              <input placeholder="例如：特邀舞台COSER随行保障，或历史金牌骨干STAFF免审..." className="w-full p-3 bg-zinc-50 border border-black/5 rounded-2xl text-xs font-bold outline-none mt-1" />
+            </div>
+            <button 
+              onClick={() => alert("免审特招成功！对应成员已直接升级为 STAFF 级别并发出短信指引。")}
+              className="w-full py-3.5 bg-[#0A84FF] text-white text-xs font-bold rounded-2xl hover:bg-[#0A84FF]/95 transition-all cursor-pointer"
+            >
+              一键免审特招
+            </button>
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+
+// ==========================================
+// 8. AdminPeople (全量人员底片)
+// ==========================================
+export const AdminPeople: React.FC = () => {
+  const [search, setSearch] = useState("");
+  const users = [
+    { id: "1", name: "林可儿", role: "STAFF", phone: "13800000001", status: "ACTIVE" },
+    { id: "2", name: "陈大伟", role: "LEADER", phone: "13900000002", status: "ACTIVE" },
+    { id: "3", name: "苏苏", role: "APPLICANT", phone: "13111110000", status: "PENDING" }
+  ];
+
+  const filtered = users.filter(u => u.name.includes(search) || u.phone.includes(search));
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-black/5 pb-4">
+          <div>
+            <h2 className="text-xl font-bold text-[#1D1D1F]">全量人员底片控制面板</h2>
+            <p className="text-xs text-[#86868B] font-medium mt-1">查看、变更当前动漫展会所有报名人员、STAFF 以及各组长的角色与底片。</p>
+          </div>
+          <input 
+            placeholder="搜索姓名或电话..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="px-3.5 py-2 border border-black/5 rounded-xl text-xs bg-white outline-none font-semibold"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          {filtered.map((u) => (
+            <div key={u.id} className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm flex justify-between items-center text-xs">
+              <div>
+                <h4 className="font-bold text-[#1D1D1F] text-sm">{u.name}</h4>
+                <p className="text-[10px] text-zinc-400 font-mono mt-1">账号：{u.phone} | 系统标识: {u.id}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                  u.role === "LEADER" 
+                    ? "bg-purple-50 text-[#BF5AF2]" 
+                    : u.role === "STAFF" 
+                      ? "bg-green-50 text-[#30D158]" 
+                      : "bg-blue-50 text-[#0A84FF]"
+                }`}>
+                  {u.role}
+                </span>
+
+                <button 
+                  onClick={() => alert(`安全限制：出于防止现场欺诈考勤需要，变更人员角色已触发安全审查邮件。`)}
+                  className="px-2.5 py-1.5 border border-black/5 rounded-xl text-[10px] font-bold hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  提升/降级权限
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+
+// ==========================================
+// 9. AdminAssignments (岗位指派)
+// ==========================================
+export const AdminAssignments: React.FC = () => {
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="border-b border-black/5 pb-4">
+          <h2 className="text-xl font-bold text-[#1D1D1F]">岗位分派与派岗管理</h2>
+          <p className="text-xs text-[#86868B] font-medium mt-1">将录取通过的 STAFF 划归分派至各执行小组，并在现场考勤系统实时下发。</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+            <h3 className="text-xs font-extrabold text-[#1D1D1F] uppercase tracking-wide">待分配岗位的 STAFF (1)</h3>
+            <div className="p-3 bg-zinc-50 border border-black/5 rounded-xl flex justify-between items-center text-xs">
+              <div>
+                <p className="font-bold text-[#1D1D1F]">苏苏</p>
+                <p className="text-[9px] text-zinc-400 mt-0.5">意向: 秩序维持、检票口</p>
+              </div>
+              <button 
+                onClick={() => alert("成功指派 苏苏 划归至 [舞台控场组] (组长：陈大伟)！派岗指令和实名保险已实时更新。")}
+                className="px-3 py-1.5 bg-[#0A84FF] text-white font-bold text-[10px] rounded-lg cursor-pointer"
+              >
+                指派至舞台控场组
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+            <h3 className="text-xs font-extrabold text-[#1D1D1F] uppercase tracking-wide">各执行组在岗架构 overview</h3>
+            <div className="space-y-3 text-xs font-semibold text-zinc-600">
+              <div className="p-3 bg-blue-50/50 rounded-xl flex justify-between">
+                <span>舞台控场组 (组长 陈大伟)</span>
+                <span className="text-[#0A84FF]">12 人在岗</span>
+              </div>
+              <div className="p-3 bg-zinc-50 rounded-xl flex justify-between">
+                <span>后勤协调组 (组长 暂缺)</span>
+                <span className="text-zinc-500">4 人在岗</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+
+// ==========================================
+// 10. AdminAttendance (历史考勤归档底片)
+// ==========================================
+export const AdminAttendance: React.FC = () => {
+  const { attendanceRecords } = useEventStore();
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="border-b border-black/5 pb-4">
+          <h2 className="text-xl font-bold text-[#1D1D1F]">历史考勤归档底片库</h2>
+          <p className="text-xs text-[#86868B] font-medium mt-1">查看、导出漫展多期活动的所有人员出勤、补签、请假及劳务结算结算明细。</p>
+        </div>
+
+        <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <span className="text-xs font-extrabold text-[#1D1D1F]">考勤记录历史总账表</span>
+            <button 
+              onClick={() => alert("考勤总台出勤底片及劳务对账单已成功生成！对账 Excel 报表已开始打包并下载至您的设备。")}
+              className="px-4 py-2 bg-[#30D158] hover:bg-[#30D158]/95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
+            >
+              <FileSpreadsheet size={14} /> 导出考勤对账明细 Excel
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-semibold">
+              <thead>
+                <tr className="border-b border-zinc-100 text-zinc-400">
+                  <th className="py-2.5">姓名</th>
+                  <th className="py-2.5">日期</th>
+                  <th className="py-2.5">岗位</th>
+                  <th className="py-2.5">出勤状态</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {attendanceRecords.map((r) => (
+                  <tr key={r.id} className="text-[#1D1D1F]">
+                    <td className="py-2.5">{r.userName}</td>
+                    <td className="py-2.5 font-mono">{r.date}</td>
+                    <td className="py-2.5">{r.positionName}</td>
+                    <td className="py-2.5">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                        r.status === "NORMAL" ? "bg-green-50 text-[#30D158]" : "bg-amber-50 text-[#FF9F0A]"
+                      }`}>
+                        {r.status === "NORMAL" ? "正常" : "迟到"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};

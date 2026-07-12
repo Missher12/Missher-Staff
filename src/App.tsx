@@ -124,15 +124,15 @@ export default function App() {
             element={
               isAuthenticated && user ? (
                 user.role === "APPLICANT" ? (
-                  <Navigate to="/applicant" replace />
+                  <Navigate to="/applicant/dashboard" replace />
                 ) : user.role === "STAFF" ? (
-                  <Navigate to="/staff" replace />
+                  <Navigate to="/staff/dashboard" replace />
                 ) : user.role === "LEADER" ? (
-                  <Navigate to="/leader" replace />
+                  <Navigate to="/leader/dashboard" replace />
                 ) : user.role === "SUPER_ADMIN" ? (
-                  <Navigate to="/super-admin" replace />
+                  <Navigate to="/super-admin/dashboard" replace />
                 ) : (
-                  <Navigate to="/admin" replace />
+                  <Navigate to="/admin/dashboard" replace />
                 )
               ) : (
                 // If not authenticated, go straight to the default activity landing page

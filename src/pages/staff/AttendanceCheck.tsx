@@ -24,24 +24,29 @@ export const AttendanceCheck: React.FC = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const [error, setError] = useState("");
+
   const handleLocationCaptured = (loc: string, distance: number) => {
     setGpsLocation(loc);
     setGpsDistance(distance);
+    setError("");
   };
 
   const handleSelfieCaptured = (base64Img: string) => {
     setSelfiePhoto(base64Img);
+    setError("");
   };
 
   const triggerConfirmPunch = () => {
     if (!gpsLocation || gpsDistance === null) {
-      alert("请先获取您的现场 GPS 定位！");
+      setError("请先获取您的现场 GPS 定位！");
       return;
     }
     if (!selfiePhoto) {
-      alert("请开启相机并拍摄一张清晰自拍作为考勤凭证！");
+      setError("请开启相机并拍摄一张清晰自拍作为考勤凭证！");
       return;
     }
+    setError("");
     setDialogOpen(true);
   };
 
@@ -153,6 +158,13 @@ export const AttendanceCheck: React.FC = () => {
               <span>根据本次动漫展会安防要求：打卡会同步核验当前移动端 GPS 芯片位置与工作现场自拍照双因子，防止伪造打卡行为。</span>
             </div>
 
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-150 rounded-xl text-xs text-[#FF453A] font-semibold flex items-center gap-2 animate-scale-up">
+                <AlertCircle size={14} />
+                <span>{error}</span>
+              </div>
+            )}
+
             {/* Step 1: GPS Position */}
             <LocationCapture onCapture={handleLocationCaptured} />
 
@@ -164,7 +176,7 @@ export const AttendanceCheck: React.FC = () => {
               <button
                 onClick={triggerConfirmPunch}
                 disabled={isSubmitting}
-                className="w-full py-4 bg-gradient-to-tr from-[#0A84FF] to-[#BF5AF2] text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-4 bg-[#30D158] hover:bg-[#30D158]/95 text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? "加密特征打包上传中..." : isCheckOutMode ? "确认提交考勤签退打卡" : "确认提交考勤签到打卡"}
                 <Send size={14} />

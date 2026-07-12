@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../app/stores/authStore";
 import { useEventStore } from "../../app/stores/eventStore";
-import { MobileLayout } from "../../app/layouts/MobileLayout";
+import { StaffLayout } from "../../app/layouts/StaffLayout";
 import { StatusBadge, SensitiveText } from "../../shared/ui";
 import { MapPin, Phone, Bell, QrCode, ArrowRight, CheckSquare, Clock, Users } from "lucide-react";
 import { mockUsers } from "../../shared/mocks/data";
@@ -27,7 +27,7 @@ export const StaffDashboard: React.FC = () => {
   const unreadCount = announcements.filter(a => !a.confirmedUserIds.includes(user?.id || "")).length;
 
   return (
-    <MobileLayout title="STAFF 移动工作站">
+    <StaffLayout title="STAFF 移动工作站">
       <div className="space-y-5">
         {/* 1. 个人与小组岗位卡 */}
         <div className="p-5 bg-gradient-to-tr from-[#0A84FF] to-[#BF5AF2] rounded-[22px] text-white shadow-sm relative">
@@ -158,6 +158,6 @@ export const StaffDashboard: React.FC = () => {
           </button>
         </div>
       </div>
-    </MobileLayout>
+    </StaffLayout>
   );
 };
