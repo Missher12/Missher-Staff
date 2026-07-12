@@ -533,3 +533,40 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ label, onUpload }) =
     </div>
   );
 };
+
+// ==========================================
+// 11. Toast (轻量通知组件)
+// ==========================================
+interface ToastProps {
+  message: string;
+  type?: "success" | "error" | "info" | "warning";
+  onClose?: () => void;
+}
+
+export const Toast: React.FC<ToastProps> = ({ message, type = "success", onClose }) => {
+  useEffect(() => {
+    if (onClose) {
+      const timer = setTimeout(onClose, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [onClose]);
+
+  const config = {
+    success: { bg: "bg-emerald-50 text-emerald-800 border-emerald-100", icon: <CheckCircle size={16} className="text-emerald-500" /> },
+    error: { bg: "bg-rose-50 text-rose-800 border-rose-100", icon: <AlertTriangle size={16} className="text-rose-500" /> },
+    info: { bg: "bg-blue-50 text-blue-800 border-blue-100", icon: <Info size={16} className="text-blue-500" /> },
+    warning: { bg: "bg-amber-50 text-amber-800 border-amber-100", icon: <AlertTriangle size={16} className="text-amber-500" /> }
+  }[type];
+
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-slide-down flex items-center gap-2.5 px-4.5 py-3 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border text-xs font-bold bg-white/94 backdrop-blur-md max-w-sm w-max">
+      {config.icon}
+      <span className="text-zinc-800">{message}</span>
+      {onClose && (
+        <button onClick={onClose} className="p-1 rounded-full text-zinc-400 hover:bg-zinc-100 transition-colors cursor-pointer">
+          <X size={12} />
+        </button>
+      )}
+    </div>
+  );
+};

@@ -581,12 +581,16 @@ export const FormBuilder: React.FC = () => {
 // 5. AdminInterviews (面试评分)
 // ==========================================
 export const AdminInterviews: React.FC = () => {
-  const { applications } = useEventStore();
-  const [reviews, setReviews] = useState(applications.filter(a => a.status === "INTERVIEWED" || a.status === "SUBMITTED"));
+  const { applications, employStaff } = useEventStore();
+
+  const reviews = applications.filter(a => 
+    a.employmentStatus === "PENDING" && 
+    (a.interviewStatus === "RECOMMENDED" || a.interviewStatus === "COMPLETED")
+  );
 
   const handleAction = (id: string, action: "APPROVED" | "REJECTED") => {
-    setReviews(prev => prev.filter(r => r.id !== id));
-    alert(action === "APPROVED" ? "已同意录取该 STAFF，身份已自动升级，系统已发出岗位邀约短信。" : "已拒绝，候选人信息已加入备用档案池。");
+    employStaff(id, action === "APPROVED", "舞台控场组", "舞台控场岗");
+    alert(action === "APPROVED" ? "已同意录取该 STAFF，身份已自动升级，已分配至 [舞台控场组]，系统已同步实名保险并发出短信引导。" : "已暂缓录取，对应记录已归档。");
   };
 
   return (
@@ -648,12 +652,10 @@ export const AdminInterviews: React.FC = () => {
 // 6. AdminAttendanceRealtime (实时核销监控)
 // ==========================================
 export const AdminAttendanceRealtime: React.FC = () => {
-  const { attendanceRecords } = useEventStore();
-  const [records, setRecords] = useState(attendanceRecords);
+  const { attendanceRecords, updateAttendanceStatus, showToast } = useEventStore();
 
   const handleRefresh = () => {
-    setRecords([...attendanceRecords]);
-    alert("现场考勤GPS底片和双特征水印已实时拉取并完成秒级校对。");
+    showToast("现场考勤GPS底片和双特征水印已实时拉取并完成秒级校对。", "success");
   };
 
   return (
@@ -696,7 +698,7 @@ export const AdminAttendanceRealtime: React.FC = () => {
           <span className="text-[10px] font-extrabold text-[#86868B] uppercase tracking-wider block">最新实时打卡流水 feeds</span>
           
           <div className="grid grid-cols-1 gap-3.5">
-            {records.map((r) => (
+            {attendanceRecords.map((r) => (
               <div key={r.id} className="bg-white border border-black/5 rounded-[22px] p-4.5 shadow-sm flex flex-col md:flex-row justify-between md:items-center gap-4 animate-scale-up">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-sm border border-black/5 text-[#0A84FF] overflow-hidden">
@@ -712,10 +714,13 @@ export const AdminAttendanceRealtime: React.FC = () => {
                       <span className="px-1.5 py-0.5 bg-slate-100 text-zinc-600 rounded text-[8px] font-bold">{r.groupName}</span>
                     </div>
                     <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">签到打卡时间：{r.checkInTime || "未打卡"}</p>
+                    {r.checkOutTime && (
+                      <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">签退打卡时间：{r.checkOutTime}</p>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex flex-col md:items-end text-xs">
+                <div className="flex flex-col md:items-end text-xs gap-1.5">
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] text-zinc-400 font-semibold">定位精度:</span>
                     <span className={`font-mono font-bold ${
@@ -724,7 +729,30 @@ export const AdminAttendanceRealtime: React.FC = () => {
                       {r.checkInDistance !== undefined ? `${r.checkInDistance}米 (合规)` : "未采集"}
                     </span>
                   </div>
-                  <p className="text-[9px] text-zinc-400 font-semibold mt-1">芯片基站：{r.checkInLocation || "未采集"}</p>
+                  <p className="text-[9px] text-zinc-400 font-semibold">芯片基站：{r.checkInLocation || "未采集"}</p>
+                  
+                  <div className="flex items-center gap-2 mt-1">
+                    {r.status !== "NORMAL" && (
+                      <button
+                        onClick={() => {
+                          updateAttendanceStatus(r.id, "NORMAL");
+                          showToast(`成功对 ${r.userName} 进行一键补卡核销，出勤状态已修正！`, "success");
+                        }}
+                        className="px-2.5 py-1 bg-[#30D158]/10 hover:bg-[#30D158]/20 text-[#30D158] text-[10px] font-bold rounded-lg transition-all cursor-pointer"
+                      >
+                        ⚡ 补签核销正常
+                      </button>
+                    )}
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                      r.status === "NORMAL" 
+                        ? "bg-green-50 text-[#30D158]" 
+                        : r.status === "LATE"
+                          ? "bg-amber-50 text-[#FF9F0A]"
+                          : "bg-red-50 text-[#FF453A]"
+                    }`}>
+                      {r.status === "NORMAL" ? "正常" : r.status === "LATE" ? "迟到" : "缺勤"}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

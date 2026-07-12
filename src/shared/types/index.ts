@@ -155,14 +155,27 @@ export interface Group {
 }
 
 // 13. 公告
+export type AnnouncementType = "URGENT" | "NORMAL" | "ATTENDANCE" | "INTERVIEW";
+
 export interface Announcement {
   id: string;
+  activityId?: string;
   title: string;
   content: string;
-  type: "URGENT" | "NORMAL" | "ATTENDANCE" | "INTERVIEW";
-  publishDate: string;
-  isRequiredConfirm: boolean; // 是否需要强制确认阻塞
-  confirmedUserIds: string[]; // 已确认的用户ID列表
+  type: AnnouncementType;
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  audienceRoles?: Role[];
+  groupIds?: string[];
+  userIds?: string[];
+  publishAt?: string;
+  publishDate?: string; // backward compatibility
+  expireAt?: string;
+  pinned?: boolean;
+  requiredConfirm?: boolean;
+  isRequiredConfirm?: boolean; // backward compatibility
+  confirmedUserIds: string[];
+  createdAt?: string;
+  targetRole?: Role | "ALL";
 }
 
 // 14. API 返回结构契约

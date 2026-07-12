@@ -9,6 +9,9 @@ interface EventState {
   groups: Group[];
   attendanceRecords: AttendanceRecord[];
   announcements: Announcement[];
+  toast: { message: string; type: "success" | "error" | "info" | "warning" } | null;
+  showToast: (message: string, type?: "success" | "error" | "info" | "warning") => void;
+  hideToast: () => void;
 
   // 报名人员操作
   submitApplication: (appData: Omit<Application, "id" | "submittedAt" | "status" | "interviewStatus" | "employmentStatus" | "auditHistory">) => Promise<Application>;
@@ -41,6 +44,11 @@ export const useEventStore = create<EventState>((set, get) => {
     groups: mockGroups,
     attendanceRecords: mockAttendanceRecords,
     announcements: mockAnnouncements,
+    toast: null,
+    showToast: (message: string, type: "success" | "error" | "info" | "warning" = "success") => {
+      set({ toast: { message, type } });
+    },
+    hideToast: () => set({ toast: null }),
 
     submitApplication: async (appData) => {
       const newApp: Application = {
@@ -310,7 +318,15 @@ export const useEventStore = create<EventState>((set, get) => {
       set((state) => ({
         attendanceRecords: state.attendanceRecords.map((r) => {
           if (r.id === recordId) {
-            return { ...r, status, riskLevel: status === "NORMAL" ? "LOW" : "MEDIUM" };
+            return { 
+              ...r, 
+              status, 
+              riskLevel: status === "NORMAL" ? "LOW" : "MEDIUM",
+              checkInTime: status === "NORMAL" ? (r.checkInTime || "08:58") : r.checkInTime,
+              checkOutTime: status === "NORMAL" ? (r.checkOutTime || "21:30") : r.checkOutTime,
+              checkInDistance: status === "NORMAL" ? 12 : r.checkInDistance,
+              checkOutDistance: status === "NORMAL" ? 8 : r.checkOutDistance
+            };
           }
           return r;
         })

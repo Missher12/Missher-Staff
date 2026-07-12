@@ -66,7 +66,7 @@ export const ApplicantProfile: React.FC = () => {
 // 2. ApplicantInterview (面试场次预约与管理)
 // ==========================================
 export const ApplicantInterview: React.FC = () => {
-  const { interviewSlots, bookInterview, applications } = useEventStore();
+  const { interviewSlots, bookInterview, applications, showToast } = useEventStore();
   const { user } = useAuthStore();
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -82,7 +82,7 @@ export const ApplicantInterview: React.FC = () => {
         setTimeout(() => setSuccessMsg(""), 4000);
       }
     } catch (e) {
-      alert("预约失败，请稍后重试");
+      showToast("预约失败，请稍后重试", "error");
     }
   };
 

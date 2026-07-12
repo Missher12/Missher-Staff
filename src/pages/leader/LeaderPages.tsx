@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { LeaderLayout } from "../../app/layouts/LeaderLayout";
 import { useAuthStore } from "../../app/stores/authStore";
 import { useEventStore } from "../../app/stores/eventStore";
@@ -39,6 +40,41 @@ export const LeaderDashboard: React.FC = () => {
           <div className="bg-white border border-black/5 rounded-2xl p-3 text-center">
             <span className="text-[10px] font-bold text-[#FF9F0A] block mb-0.5">迟到/异常</span>
             <span className="text-xl font-black text-[#FF9F0A] font-mono">{lateCount}</span>
+          </div>
+        </div>
+
+        {/* Quick Operations Menu */}
+        <div className="space-y-2">
+          <span className="text-[10px] font-extrabold text-[#86868B] tracking-wide uppercase block">组长专属功能</span>
+          <div className="grid grid-cols-2 gap-2">
+            <Link to="/leader/attendance" className="bg-white border border-black/5 rounded-2xl p-3 flex items-center gap-3 hover:bg-slate-50 transition-colors">
+              <div className="p-2 bg-amber-50 text-[#FF9F0A] rounded-xl"><Clock size={16} /></div>
+              <div className="text-left">
+                <span className="text-xs font-bold text-zinc-800 block">本组考勤</span>
+                <span className="text-[9px] text-zinc-400 block font-medium">成员上下班打卡</span>
+              </div>
+            </Link>
+            <Link to="/leader/interview-reviews" className="bg-white border border-black/5 rounded-2xl p-3 flex items-center gap-3 hover:bg-slate-50 transition-colors">
+              <div className="p-2 bg-green-50 text-[#30D158] rounded-xl"><Users size={16} /></div>
+              <div className="text-left">
+                <span className="text-xs font-bold text-zinc-800 block">录用初审</span>
+                <span className="text-[9px] text-zinc-400 block font-medium">面试录用评审</span>
+              </div>
+            </Link>
+            <Link to="/leader/invite-links" className="bg-white border border-black/5 rounded-2xl p-3 flex items-center gap-3 hover:bg-slate-50 transition-colors">
+              <div className="p-2 bg-blue-50 text-[#0A84FF] rounded-xl"><Send size={16} /></div>
+              <div className="text-left">
+                <span className="text-xs font-bold text-zinc-800 block">注册邀约</span>
+                <span className="text-[9px] text-zinc-400 block font-medium">免审直接录用</span>
+              </div>
+            </Link>
+            <Link to="/leader/announcements" className="bg-white border border-black/5 rounded-2xl p-3 flex items-center gap-3 hover:bg-slate-50 transition-colors">
+              <div className="p-2 bg-purple-50 text-[#BF5AF2] rounded-xl"><MessageSquare size={16} /></div>
+              <div className="text-left">
+                <span className="text-xs font-bold text-zinc-800 block">考务公告</span>
+                <span className="text-[9px] text-zinc-400 block font-medium">消息公告及动态</span>
+              </div>
+            </Link>
           </div>
         </div>
 
@@ -136,12 +172,20 @@ export const LeaderMembers: React.FC = () => {
 // 3. LeaderInterviewScan (面试动态扫码、评价与面试底片录入)
 // ==========================================
 export const LeaderInterviewScan: React.FC = () => {
-  const { scanInterviewQrCode, evaluateInterview, applications } = useEventStore();
+  const { scanInterviewQrCode, evaluateInterview, applications, showToast } = useEventStore();
   const [candidateId, setCandidateId] = useState("U_APPLICANT"); // Default sandbox applicant
   const [scanResult, setScanResult] = useState<any>(null);
   const [rating, setRating] = useState(5);
   const [evalComment, setEvalComment] = useState("");
   const [submittingEval, setSubmittingEval] = useState(false);
+
+  const candidates = applications.filter(a => a.status === "APPROVED" || a.status === "SUBMITTED");
+
+  React.useEffect(() => {
+    if (candidates.length > 0 && !candidates.some(c => c.userId === candidateId) && candidateId === "U_APPLICANT") {
+      setCandidateId(candidates[0].userId);
+    }
+  }, [applications]);
 
   // 1. Simulating Camera Scanner
   const triggerScan = async () => {
@@ -178,7 +222,7 @@ export const LeaderInterviewScan: React.FC = () => {
       setSubmittingEval(false);
       setScanResult(null);
       setEvalComment("");
-      alert("评价提交成功！面试成绩已自动记录并流转到会务考务总监待批录用。");
+      showToast("评价提交成功！面试成绩已自动记录并流转到会务考务总监待批录用。", "success");
     }, 1500);
   };
 
@@ -272,10 +316,17 @@ export const LeaderInterviewScan: React.FC = () => {
               <select 
                 value={candidateId} 
                 onChange={e => setCandidateId(e.target.value)}
-                className="flex-1 p-2 bg-white border border-black/5 rounded-xl text-xs font-semibold"
+                className="flex-1 p-2 bg-white border border-black/5 rounded-xl text-xs font-semibold outline-none"
               >
-                <option value="U_APPLICANT">林可儿 (待面试)</option>
-                <option value="U_TEMP_999">张小黑 (非正常预约用户)</option>
+                {candidates.map(c => (
+                  <option key={c.userId} value={c.userId}>
+                    {c.userName} ({c.status === "SUBMITTED" ? "待资料审" : "待面核销"})
+                  </option>
+                ))}
+                {!candidates.some(c => c.userId === "U_APPLICANT") && (
+                  <option value="U_APPLICANT">林可儿 (待面试)</option>
+                )}
+                <option value="U_TEMP_999">张小黑 (非预定异常用户)</option>
               </select>
               <button 
                 onClick={triggerScan}
@@ -295,6 +346,7 @@ export const LeaderInterviewScan: React.FC = () => {
 // 4. LeaderLeaveReviews (组员请假审批)
 // ==========================================
 export const LeaderLeaveReviews: React.FC = () => {
+  const { showToast } = useEventStore();
   const [requests, setRequests] = useState([
     { id: "L_REQ_01", userName: "苏苏", date: "2026-07-12", reason: "学校有紧急论文答辩需要请假半天", status: "PENDING" }
   ]);
@@ -306,7 +358,7 @@ export const LeaderLeaveReviews: React.FC = () => {
       }
       return r;
     }));
-    alert(accept ? "请假批准通过！已流转至总后台会务总监进行终审确认。" : "请假驳回，已通过系统短信通知组员。");
+    showToast(accept ? "请假批准通过！已流转至总后台会务总监进行终审确认。" : "请假驳回，已通过系统短信通知组员。", accept ? "success" : "info");
   };
 
   return (
@@ -368,6 +420,7 @@ export const LeaderLeaveReviews: React.FC = () => {
 // 5. LeaderCorrectionSuggestions (补卡、调岗建议)
 // ==========================================
 export const LeaderCorrectionSuggestions: React.FC = () => {
+  const { showToast } = useEventStore();
   const [member, setMember] = useState("林可儿");
   const [type, setType] = useState("补签打卡");
   const [detail, setDetail] = useState("");
@@ -376,7 +429,7 @@ export const LeaderCorrectionSuggestions: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!detail) {
-      alert("请填写详细建议说明");
+      showToast("请填写详细建议说明", "warning");
       return;
     }
     setSuccess(true);
@@ -449,12 +502,17 @@ export const LeaderCorrectionSuggestions: React.FC = () => {
 // 6. LeaderAttendance (考勤底片归档)
 // ==========================================
 export const LeaderAttendance: React.FC = () => {
-  const { attendanceRecords } = useEventStore();
+  const { attendanceRecords, updateAttendanceStatus, showToast } = useEventStore();
   const [filter, setFilter] = useState<"ALL" | "NORMAL" | "LATE" | "ABSENT">("ALL");
 
   const filteredRecords = attendanceRecords.filter(r => 
     filter === "ALL" || r.status === filter
   );
+
+  const handleCorrect = (recordId: string, userName: string) => {
+    updateAttendanceStatus(recordId, "NORMAL");
+    showToast(`成功补卡核销！已将组员 ${userName} 考勤结果更正为【正常出勤】。`, "success");
+  };
 
   return (
     <LeaderLayout title="组员考勤底片与归档">
@@ -493,9 +551,11 @@ export const LeaderAttendance: React.FC = () => {
                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
                     record.status === "NORMAL" 
                       ? "bg-green-50 text-[#30D158]" 
-                      : "bg-orange-50 text-[#FF9F0A]"
+                      : record.status === "LATE"
+                        ? "bg-amber-50 text-[#FF9F0A]"
+                        : "bg-red-50 text-[#FF453A]"
                   }`}>
-                    {record.status === "NORMAL" ? "正常" : "异常"}
+                    {record.status === "NORMAL" ? "正常" : record.status === "LATE" ? "迟到" : "缺勤"}
                   </span>
                 </div>
 
@@ -515,6 +575,17 @@ export const LeaderAttendance: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                {(record.status !== "NORMAL" || !record.checkInTime || !record.checkOutTime) && (
+                  <div className="flex gap-2 pt-2 border-t border-black/5 mt-1">
+                    <button
+                      onClick={() => handleCorrect(record.id, record.userName)}
+                      className="flex-1 py-2 bg-[#30D158]/10 hover:bg-[#30D158]/20 text-[#30D158] font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      💡 帮他补卡 / 核销出勤
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -531,7 +602,7 @@ export const LeaderInterviewReviews: React.FC = () => {
   const { applications } = useEventStore();
   
   // Pending interview / review applicants
-  const pendingCandidates = applications.filter(a => a.status === "SUBMITTED" || a.status === "INTERVIEWED");
+  const pendingCandidates = applications.filter(a => (a.status === "APPROVED" && (a.interviewStatus === "COMPLETED" || a.interviewStatus === "RECOMMENDED")) || a.status === "SUBMITTED");
 
   return (
     <LeaderLayout title="面试候选人审核">

@@ -18,6 +18,8 @@ import { adminRoutes } from "./app/router/admin.routes";
 import { superAdminRoutes } from "./app/router/super-admin.routes";
 
 import { ShieldAlert, HelpCircle } from "lucide-react";
+import { useEventStore } from "./app/stores/eventStore";
+import { Toast } from "./shared/ui";
 
 // ==========================================
 // 403 Error Page (Unauthorized Access)
@@ -71,9 +73,11 @@ export const Error404: React.FC = () => {
 
 export default function App() {
   const { isAuthenticated, user } = useAuthStore();
+  const { toast, hideToast } = useEventStore();
 
   return (
     <BrowserRouter>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
       <AnnouncementGuard>
         <Routes>
           {/* 403 and 404 error views */}
