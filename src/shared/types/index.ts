@@ -354,17 +354,30 @@ export interface AttendanceRisk {
   detectedAt: string;
 }
 
+export interface AttendanceSnapshot {
+  status: AttendanceStatus;
+  checkInTime?: string;
+  checkOutTime?: string;
+}
+
 export interface AttendanceCorrection {
   id: string;
   attendanceId: string;
+  before: AttendanceSnapshot;
+  after: AttendanceSnapshot;
+  reason: string;
   operatorId: string;
   operatorName: string;
-  originalStatus: AttendanceStatus;
-  newStatus: AttendanceStatus;
-  originalTime?: string;
-  newTime?: string;
-  reason: string;
-  correctedAt: string;
+  createdAt: string;
+}
+
+export interface GroupLeaderAssignment {
+  id: string;
+  activityId: string;
+  groupId: string;
+  userId: string;
+  leaderType: "PRIMARY" | "DEPUTY" | "LEADER";
+  permissions: LeaderPermission[];
 }
 
 export interface CorrectionSuggestion {
@@ -427,6 +440,16 @@ export interface AnnouncementReceipt {
   announcementId: string;
   userId: string;
   confirmedAt: string;
+}
+
+export interface InterviewQrToken {
+  token: string;
+  userId: string;
+  applicationId: string;
+  slotId: string;
+  activityId: string;
+  expiresAt: string;
+  usedAt?: string;
 }
 
 export interface AuditLog {

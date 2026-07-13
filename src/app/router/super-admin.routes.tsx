@@ -16,6 +16,14 @@ export const superAdminRoutes: RouteConfig[] = [
     )
   },
   { 
+    path: "/super-admin/dashboard", 
+    element: (
+      <RoleGuard allowedRoles={["SUPER_ADMIN"]}>
+        <SuperAdminDashboard />
+      </RoleGuard>
+    )
+  },
+  { 
     path: "/super-admin/activities", 
     element: (
       <RoleGuard allowedRoles={["SUPER_ADMIN"]}>
@@ -32,7 +40,7 @@ export const superAdminRoutes: RouteConfig[] = [
     )
   },
   { 
-    path: "/super-admin/settings", 
+    path: "/super-admin/global-settings", 
     element: (
       <RoleGuard allowedRoles={["SUPER_ADMIN"]}>
         <SuperAdminGlobalSettings />
@@ -40,7 +48,7 @@ export const superAdminRoutes: RouteConfig[] = [
     )
   },
   { 
-    path: "/super-admin/audit", 
+    path: "/super-admin/audit-logs", 
     element: (
       <RoleGuard allowedRoles={["SUPER_ADMIN"]}>
         <SuperAdminAuditLogs />
@@ -48,7 +56,7 @@ export const superAdminRoutes: RouteConfig[] = [
     )
   },
   { 
-    path: "/super-admin/health", 
+    path: "/super-admin/system-health", 
     element: (
       <RoleGuard allowedRoles={["SUPER_ADMIN"]}>
         <SuperAdminSystemHealth />

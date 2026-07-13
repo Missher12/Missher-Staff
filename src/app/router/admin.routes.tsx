@@ -6,7 +6,8 @@ import {
   AdminGroups, AdminLeave, AdminAnnouncements, AdminImports, 
   ActivityList, FormBuilder,
   AdminInterviews, AdminAttendanceRealtime, AdminAdmissions,
-  AdminPeople, AdminAssignments, AdminAttendance
+  AdminPeople, AdminAssignments, AdminAttendance,
+  AdminAttendanceDetail, AdminAttendanceCorrections
 } from "../../pages/admin/AdminPages";
 import { RoleGuard } from "../guards/Guards";
 import { RouteConfig } from "./public.routes";
@@ -97,6 +98,22 @@ export const adminRoutes: RouteConfig[] = [
     element: (
       <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
         <AdminAttendance />
+      </RoleGuard>
+    )
+  },
+  { 
+    path: "/admin/attendance/:attendanceId", 
+    element: (
+      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+        <AdminAttendanceDetail />
+      </RoleGuard>
+    )
+  },
+  { 
+    path: "/admin/attendance/corrections", 
+    element: (
+      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+        <AdminAttendanceCorrections />
       </RoleGuard>
     )
   },

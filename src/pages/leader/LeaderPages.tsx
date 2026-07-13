@@ -4,6 +4,12 @@ import { LeaderLayout } from "../../app/layouts/LeaderLayout";
 import { useAuthStore } from "../../app/stores/authStore";
 import { useEventStore } from "../../app/stores/eventStore";
 import { 
+  useGroups,
+  useAttendanceRecords,
+  useSubmitCorrectionSuggestion,
+  useCorrectionSuggestions
+} from "../../shared/hooks/useQueries";
+import { 
   Users, MapPin, Scan, CheckCircle, Clock, 
   Send, AlertTriangle, Play, RefreshCw, Star, MessageSquare 
 } from "lucide-react";
@@ -502,24 +508,98 @@ export const LeaderCorrectionSuggestions: React.FC = () => {
 // 6. LeaderAttendance (考勤底片归档)
 // ==========================================
 export const LeaderAttendance: React.FC = () => {
-  const { attendanceRecords, updateAttendanceStatus, showToast } = useEventStore();
-  const [filter, setFilter] = useState<"ALL" | "NORMAL" | "LATE" | "ABSENT">("ALL");
+  const { user } = useAuthStore();
+  const { showToast } = useEventStore();
+  const [filter, setFilter] = useState<"ALL" | "NORMAL" | "LATE" | "ABSENT" | "EXCEPTIONAL">("ALL");
 
-  const filteredRecords = attendanceRecords.filter(r => 
+  // Fetch groups and find leader's group
+  const { data: groups } = useGroups("ACT_2026_01");
+  const leaderGroup = groups?.find(g => g.leaderId === user?.id) || groups?.[0];
+
+  // Fetch attendance records specifically for leader's group
+  const { data: attendanceRecords, isLoading } = useAttendanceRecords({
+    groupId: leaderGroup?.id
+  });
+
+  // Fetch suggestions submitted by this leader to show status on card
+  const { data: suggestions } = useCorrectionSuggestions({
+    leaderId: user?.id
+  });
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  
+  // Suggestion form state
+  const [suggestedStatus, setSuggestedStatus] = useState<any>("NORMAL");
+  const [suggestedTime, setSuggestedTime] = useState("");
+  const [suggestedType, setSuggestedType] = useState<"CHECK_IN" | "CHECK_OUT">("CHECK_IN");
+  const [reason, setReason] = useState("");
+
+  const submitMutation = useSubmitCorrectionSuggestion();
+
+  const filteredRecords = (attendanceRecords || []).filter(r => 
     filter === "ALL" || r.status === filter
   );
 
-  const handleCorrect = (recordId: string, userName: string) => {
-    updateAttendanceStatus(recordId, "NORMAL");
-    showToast(`成功补卡核销！已将组员 ${userName} 考勤结果更正为【正常出勤】。`, "success");
+  const handleOpenDrawer = (record: any) => {
+    setSelectedRecord(record);
+    setSuggestedStatus("NORMAL");
+    setSuggestedTime(record.checkInTime || "09:00");
+    setSuggestedType("CHECK_IN");
+    setReason("");
+    setIsDrawerOpen(true);
+  };
+
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false);
+    setSelectedRecord(null);
+  };
+
+  const handleSubmitSuggestion = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reason.trim()) {
+      showToast("请填写申请修正的真实原因！", "error");
+      return;
+    }
+    if (!selectedRecord) return;
+
+    submitMutation.mutate({
+      attendanceId: selectedRecord.id,
+      leaderId: user?.id || "U_LEADER",
+      update: {
+        suggestedStatus,
+        suggestedTime: suggestedTime || undefined,
+        type: suggestedType,
+        reason
+      }
+    }, {
+      onSuccess: () => {
+        showToast("已成功提交补卡建议，等待管理员审核处理！", "success");
+        handleCloseDrawer();
+      },
+      onError: (err: any) => {
+        showToast(`提交失败: ${err.message}`, "error");
+      }
+    });
   };
 
   return (
     <LeaderLayout title="组员考勤底片与归档">
       <div className="space-y-4">
+        {/* Info panel */}
+        {leaderGroup && (
+          <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-3.5 text-xs text-blue-700 font-semibold flex items-start gap-2 animate-fade-in">
+            <span className="text-base">ℹ️</span>
+            <div>
+              <p>您当前正在管理【{leaderGroup.name}】的考勤数据。</p>
+              <p className="font-normal text-blue-600 mt-0.5">根据安全考勤守则，组长仅具有查看与提交修正建议权限，所有补卡需管理员终审。</p>
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
-          {(["ALL", "NORMAL", "LATE", "ABSENT"] as const).map((f) => (
+          {(["ALL", "NORMAL", "LATE", "ABSENT", "EXCEPTIONAL"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -529,67 +609,188 @@ export const LeaderAttendance: React.FC = () => {
                   : "text-zinc-500 hover:text-zinc-800"
               }`}
             >
-              {f === "ALL" ? "全部" : f === "NORMAL" ? "正常" : f === "LATE" ? "迟到" : "缺勤"}
+              {f === "ALL" ? "全部" : f === "NORMAL" ? "正常" : f === "LATE" ? "迟到" : f === "ABSENT" ? "缺勤" : "异常"}
             </button>
           ))}
         </div>
 
         {/* List of attendance records */}
         <div className="space-y-2.5">
-          {filteredRecords.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-10 text-zinc-400 text-xs font-semibold">
+              正在加载组员考勤数据...
+            </div>
+          ) : filteredRecords.length === 0 ? (
             <div className="text-center py-10 bg-white border border-black/5 rounded-[22px] text-zinc-400 text-xs font-medium">
               无符合筛选条件的考勤记录
             </div>
           ) : (
-            filteredRecords.map((record) => (
-              <div key={record.id} className="bg-white border border-black/5 rounded-[22px] p-4 shadow-sm space-y-3 animate-scale-up">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="text-sm font-extrabold text-[#1D1D1F]">{record.userName}</h4>
-                    <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{record.positionName}</p>
+            filteredRecords.map((record) => {
+              // Find if there's a pending suggestion for this record
+              const pendingSug = (suggestions || []).find(s => s.attendanceId === record.id && s.status === "PENDING");
+              return (
+                <div key={record.id} className="bg-white border border-black/5 rounded-[22px] p-4 shadow-sm space-y-3 animate-scale-up">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-sm font-extrabold text-[#1D1D1F]">{record.userName}</h4>
+                      <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{record.positionName}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {pendingSug && (
+                        <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[8px] font-black animate-pulse">
+                          ⏳ 修正审核中
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                        record.status === "NORMAL" 
+                          ? "bg-green-50 text-[#30D158]" 
+                          : record.status === "LATE"
+                            ? "bg-amber-50 text-[#FF9F0A]"
+                            : record.status === "EXCEPTIONAL"
+                              ? "bg-purple-50 text-[#BF5AF2]"
+                              : "bg-red-50 text-[#FF453A]"
+                      }`}>
+                        {record.status === "NORMAL" ? "正常" : record.status === "LATE" ? "迟到" : record.status === "EXCEPTIONAL" ? "异常" : "缺勤"}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                    record.status === "NORMAL" 
-                      ? "bg-green-50 text-[#30D158]" 
-                      : record.status === "LATE"
-                        ? "bg-amber-50 text-[#FF9F0A]"
-                        : "bg-red-50 text-[#FF453A]"
-                  }`}>
-                    {record.status === "NORMAL" ? "正常" : record.status === "LATE" ? "迟到" : "缺勤"}
-                  </span>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2 text-xs font-semibold">
-                  <div className="p-2.5 bg-slate-50 border border-black/5 rounded-xl">
-                    <span className="text-[9px] text-zinc-400 block mb-0.5">签到打卡</span>
-                    <span className="text-zinc-800">{record.checkInTime || "（未打卡）"}</span>
-                    {record.checkInDistance !== undefined && (
-                      <span className="text-[9px] text-zinc-400 block mt-1 font-mono">偏差: {record.checkInDistance} 米</span>
-                    )}
+                  <div className="grid grid-cols-2 gap-3 pt-1 text-xs font-semibold">
+                    <div className="p-2.5 bg-slate-50 border border-black/5 rounded-xl">
+                      <span className="text-[9px] text-zinc-400 block mb-0.5">签到打卡</span>
+                      <span className="text-zinc-800 font-mono">{record.checkInTime || "（未打卡）"}</span>
+                      {record.checkInDistance !== undefined && (
+                        <span className="text-[9px] text-zinc-400 block mt-1 font-mono">偏差: {record.checkInDistance} 米</span>
+                      )}
+                    </div>
+                    <div className="p-2.5 bg-slate-50 border border-black/5 rounded-xl">
+                      <span className="text-[9px] text-zinc-400 block mb-0.5">签退打卡</span>
+                      <span className="text-zinc-800 font-mono">{record.checkOutTime || "（未打卡）"}</span>
+                      {record.checkOutDistance !== undefined && (
+                        <span className="text-[9px] text-zinc-400 block mt-1 font-mono">偏差: {record.checkOutDistance} 米</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="p-2.5 bg-slate-50 border border-black/5 rounded-xl">
-                    <span className="text-[9px] text-zinc-400 block mb-0.5">签退打卡</span>
-                    <span className="text-zinc-800">{record.checkOutTime || "（未打卡）"}</span>
-                    {record.checkOutDistance !== undefined && (
-                      <span className="text-[9px] text-zinc-400 block mt-1 font-mono">偏差: {record.checkOutDistance} 米</span>
-                    )}
-                  </div>
-                </div>
 
-                {(record.status !== "NORMAL" || !record.checkInTime || !record.checkOutTime) && (
-                  <div className="flex gap-2 pt-2 border-t border-black/5 mt-1">
-                    <button
-                      onClick={() => handleCorrect(record.id, record.userName)}
-                      className="flex-1 py-2 bg-[#30D158]/10 hover:bg-[#30D158]/20 text-[#30D158] font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1"
-                    >
-                      💡 帮他补卡 / 核销出勤
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))
+                  {record.status !== "NORMAL" && (
+                    <div className="flex gap-2 pt-2 border-t border-black/5 mt-1">
+                      <button
+                        onClick={() => handleOpenDrawer(record)}
+                        disabled={!!pendingSug}
+                        className={`flex-1 py-2 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 ${
+                          pendingSug 
+                            ? "bg-zinc-100 text-zinc-400 cursor-not-allowed" 
+                            : "bg-[#FF9F0A]/10 hover:bg-[#FF9F0A]/20 text-[#FF9F0A] cursor-pointer"
+                        }`}
+                      >
+                        💡 {pendingSug ? "已提交修正建议，请等待" : "提交补签或修正出勤建议"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
+
+        {/* Correction Suggestion Form Modal/Drawer */}
+        {isDrawerOpen && selectedRecord && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+            <div className="bg-white w-full sm:max-w-md rounded-t-[30px] sm:rounded-[30px] p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-slide-up">
+              <div className="flex justify-between items-center border-b border-black/5 pb-3">
+                <div>
+                  <h3 className="text-base font-black text-zinc-950">申请修正考勤记录</h3>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">组员: {selectedRecord.userName} ({selectedRecord.positionName})</p>
+                </div>
+                <button 
+                  onClick={handleCloseDrawer}
+                  className="text-zinc-400 hover:text-zinc-600 text-lg font-bold p-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitSuggestion} className="space-y-4 text-xs font-semibold">
+                {/* Type Selection */}
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1.5">修改目标打卡</label>
+                  <div className="flex gap-2">
+                    {(["CHECK_IN", "CHECK_OUT"] as const).map((t) => (
+                      <button
+                        type="button"
+                        key={t}
+                        onClick={() => setSuggestedType(t)}
+                        className={`flex-1 py-2 rounded-xl border text-center font-bold transition-all ${
+                          suggestedType === t
+                            ? "border-[#0A84FF] bg-[#0A84FF]/10 text-[#0A84FF]"
+                            : "border-zinc-200 text-zinc-500"
+                        }`}
+                      >
+                        {t === "CHECK_IN" ? "签到打卡" : "签退打卡"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Status Selection */}
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1.5">建议更正状态</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["NORMAL", "LATE", "ABSENT"] as const).map((s) => (
+                      <button
+                        type="button"
+                        key={s}
+                        onClick={() => setSuggestedStatus(s)}
+                        className={`py-2 rounded-xl border text-center font-bold transition-all ${
+                          suggestedStatus === s
+                            ? "border-[#30D158] bg-[#30D158]/10 text-[#30D158]"
+                            : "border-zinc-200 text-zinc-500"
+                        }`}
+                      >
+                        {s === "NORMAL" ? "正常" : s === "LATE" ? "迟到" : "缺勤"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Time input */}
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1.5">建议打卡时间</label>
+                  <input
+                    type="text"
+                    value={suggestedTime}
+                    onChange={(e) => setSuggestedTime(e.target.value)}
+                    placeholder="格式 e.g. 09:00 或 18:30"
+                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-mono text-zinc-800"
+                  />
+                </div>
+
+                {/* Reason input */}
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1.5">
+                    补卡或修正原因 <span className="text-red-500 font-bold">*必填</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="必须写明真实修正原因，如：展会现场GPS定位漂移、由于设备故障无法打卡、由组长人工核实等..."
+                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-medium leading-relaxed"
+                  />
+                </div>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={submitMutation.isPending}
+                  className="w-full py-3.5 bg-[#FF9F0A] text-white font-bold text-xs rounded-xl hover:bg-[#FF9F0A]/90 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {submitMutation.isPending ? "正在提交建议..." : "⚡ 确认并提交建议给管理员"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </LeaderLayout>
   );
@@ -674,9 +875,9 @@ export const LeaderInviteLinks: React.FC = () => {
 
         <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
           <div>
-            <h3 className="text-xs font-bold text-[#1D1D1F]">快捷邀请规则</h3>
+            <h3 className="text-xs font-bold text-[#1D1D1F]">内部推荐规则</h3>
             <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
-              动漫展现场由于人员流动巨大，组长可在此直接生成小组专属注册码。通过该码注册的用户，其系统级别将自动晋升为 <b>STAFF 级别</b> 且免审加入您的“舞台控场组”。
+              漫展内部推荐专属邀请码。通过该邀请码报名的候选人，其报名表将自动绑定您的“推荐渠道（舞台控场组推荐）”，并在报名筛选中享有极速通道。新用户需<b>进入统一待审核状态</b>，并依次通过<b>报名审核、实名面试、组长评价、管理员终审</b>四级安全流程后，方可录用上岗，严禁绕过面试直接入职。
             </p>
           </div>
 
@@ -684,7 +885,7 @@ export const LeaderInviteLinks: React.FC = () => {
             onClick={generateLink}
             className="w-full py-3 bg-[#FF9F0A] text-white text-xs font-bold rounded-full hover:bg-[#FF9F0A]/95 transition-all cursor-pointer text-center"
           >
-            + 立即生成本组专属 STAFF 注册码
+            + 立即生成本组专属内招报名码
           </button>
         </div>
 

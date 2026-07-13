@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../../app/stores/authStore";
 import { useEventStore } from "../../app/stores/eventStore";
+import { apiClient } from "../../shared/api/client";
 import { ApplicantLayout } from "../../app/layouts/ApplicantLayout";
 import { QRCodeDisplay } from "../../shared/ui";
-import { ArrowLeft, CheckCircle2, RefreshCw } from "lucide-react";
+import { ArrowLeft, CheckCircle2, RefreshCw, Clock } from "lucide-react";
 
 export const InterviewQrCode: React.FC = () => {
   const { user } = useAuthStore();
@@ -16,8 +18,37 @@ export const InterviewQrCode: React.FC = () => {
   // Fullscreen state
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Generates a mock token including date, userId and slotId to authenticate
-  const mockTokenVal = `INTERVIEW_CONF_USER:${user?.id}_TIME:${Date.now().toString().substring(0, 10)}`;
+  // Fetch the secure dyanmic token
+  const { data: qrToken, refetch, isFetching } = useQuery({
+    queryKey: ["interviewToken", user?.id, myApp?.interviewSlotId, myApp?.activityId],
+    queryFn: () => apiClient.generateInterviewToken(
+      user?.id || "",
+      myApp?.interviewSlotId || "SL_01",
+      myApp?.activityId || "ACT_2026_01"
+    ),
+    enabled: !!user?.id,
+    refetchInterval: 15000, // Auto refresh every 15 seconds
+  });
+
+  // Calculate dynamic countdown in seconds
+  const [timeLeft, setTimeLeft] = useState(15);
+
+  useEffect(() => {
+    if (!qrToken) return;
+    const interval = setInterval(() => {
+      const expires = new Date(qrToken.expiresAt).getTime();
+      const now = Date.now();
+      const diff = Math.max(0, Math.round((expires - now) / 1000));
+      setTimeLeft(diff);
+      if (diff === 0) {
+        refetch();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [qrToken, refetch]);
+
+  const mockTokenVal = qrToken?.token || `INTERVIEW_FALLBACK_USER:${user?.id}`;
 
   return (
     <ApplicantLayout 
@@ -43,7 +74,22 @@ export const InterviewQrCode: React.FC = () => {
             </button>
           )}
 
-          <QRCodeDisplay value={mockTokenVal} />
+          <div className="bg-white border border-black/5 rounded-[32px] p-6 shadow-sm flex flex-col items-center justify-center max-w-xs mx-auto">
+            <QRCodeDisplay value={mockTokenVal} />
+            
+            {/* Dynamic countdown status */}
+            <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-[#FF9F0A] bg-amber-50 px-3 py-1 rounded-full">
+              <Clock size={12} className={timeLeft <= 5 ? "animate-pulse" : ""} />
+              <span>动态口令将在 {timeLeft} 秒内刷新</span>
+              <button 
+                onClick={() => { refetch(); }}
+                disabled={isFetching}
+                className="ml-1 text-[#0A84FF] hover:underline"
+              >
+                {isFetching ? "..." : "刷新"}
+              </button>
+            </div>
+          </div>
 
           {!isFullscreen && (
             <div className="text-center mt-3">

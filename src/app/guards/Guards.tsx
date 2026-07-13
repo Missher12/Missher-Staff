@@ -63,28 +63,25 @@ export const AnnouncementGuard: React.FC<{ children: React.ReactNode }> = ({ chi
   // 检索当前用户是否有“必须确认且尚未确认”的紧急公告，并进行精准条件匹配
   const pendingUrgentAnn = announcements.find((ann) => {
     // 必须是强制确认
-    if (!ann.isRequiredConfirm) return false;
+    const isConf = ann.isRequiredConfirm || ann.requiredConfirm;
+    if (!isConf) return false;
     
     // 已经确认则跳过
     if (ann.confirmedUserIds.includes(user.id)) return false;
 
     // 1. 匹配角色 (如果是针对特定角色)
-    // 假定我们的公告数据中支持 audienceRoles 字段
-    const audienceRoles: string[] = (ann as any).audienceRoles || ["STAFF", "LEADER", "ACTIVITY_ADMIN", "SUPER_ADMIN", "APPLICANT"];
-    if (audienceRoles && !audienceRoles.includes(user.role)) {
+    if (ann.audienceRoles && !ann.audienceRoles.includes(user.role)) {
       return false;
     }
 
     // 2. 匹配特定用户 ID (如果限定了用户)
-    const targetUserIds: string[] | undefined = (ann as any).userIds;
-    if (targetUserIds && !targetUserIds.includes(user.id)) {
+    if (ann.userIds && !ann.userIds.includes(user.id)) {
       return false;
     }
 
     // 3. 匹配特定活动 (如果是针对特定活动)
-    const targetActivityId: string | undefined = (ann as any).activityId;
-    if (targetActivityId && targetActivityId !== "ACT_2026_01") {
-      // 默认匹配 ACT_2026_01
+    if (ann.activityId && ann.activityId !== "ACT_2026_01") {
+      return false;
     }
 
     return true;

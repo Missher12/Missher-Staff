@@ -1,9 +1,21 @@
 import React, { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AdminLayout } from "../../app/layouts/AdminLayout";
+import { useAuthStore } from "../../app/stores/authStore";
 import { useEventStore } from "../../app/stores/eventStore";
+import { Application, AttendanceRecord } from "../../shared/types";
+import {
+  useAttendanceRecords,
+  useAttendanceById,
+  useAttendanceCorrections,
+  useCorrectAttendance,
+  useCorrectionSuggestions,
+  useApproveCorrectionSuggestion
+} from "../../shared/hooks/useQueries";
 import { 
   Users, UserCheck, ShieldCheck, Megaphone, FileText, 
-  UploadCloud, FileSpreadsheet, PlusCircle, Trash2, CheckCircle, XCircle 
+  UploadCloud, FileSpreadsheet, PlusCircle, Trash2, CheckCircle, XCircle,
+  ArrowLeft, History, Clock, AlertTriangle, FileClock
 } from "lucide-react";
 
 // ==========================================
@@ -732,17 +744,12 @@ export const AdminAttendanceRealtime: React.FC = () => {
                   <p className="text-[9px] text-zinc-400 font-semibold">芯片基站：{r.checkInLocation || "未采集"}</p>
                   
                   <div className="flex items-center gap-2 mt-1">
-                    {r.status !== "NORMAL" && (
-                      <button
-                        onClick={() => {
-                          updateAttendanceStatus(r.id, "NORMAL");
-                          showToast(`成功对 ${r.userName} 进行一键补卡核销，出勤状态已修正！`, "success");
-                        }}
-                        className="px-2.5 py-1 bg-[#30D158]/10 hover:bg-[#30D158]/20 text-[#30D158] text-[10px] font-bold rounded-lg transition-all cursor-pointer"
-                      >
-                        ⚡ 补签核销正常
-                      </button>
-                    )}
+                    <Link
+                      to={`/admin/attendance/${r.id}`}
+                      className="px-2.5 py-1 bg-[#0A84FF]/10 hover:bg-[#0A84FF]/20 text-[#0A84FF] text-[10px] font-bold rounded-lg transition-all inline-block"
+                    >
+                      🔍 核销详情与人工修正
+                    </Link>
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
                       r.status === "NORMAL" 
                         ? "bg-green-50 text-[#30D158]" 
@@ -764,39 +771,258 @@ export const AdminAttendanceRealtime: React.FC = () => {
 };
 
 // ==========================================
-// 7. AdminAdmissions (特批直入)
+// 7. AdminAdmissions (最终录用与分配中心)
 // ==========================================
 export const AdminAdmissions: React.FC = () => {
+  const { applications, employStaff, showToast } = useEventStore();
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  
+  // Modal configurations
+  const [groupName, setGroupName] = useState("舞台控场组");
+  const [positionName, setPositionName] = useState("舞台控场岗");
+  const [assignedDates, setAssignedDates] = useState<string[]>([]);
+  const [isLeader, setIsLeader] = useState(false);
+
+  // Default dropdown selections
+  const availableGroups = ["舞台控场组", "门禁检票组", "后勤机动组", "摄影宣传组"];
+  const availablePositions = ["舞台控场岗", "门禁检票岗", "后勤机动岗", "摄影/自媒体岗", "秩序疏导岗"];
+
+  // Filter candidates who have applied and are NOT yet employed/rejected (PENDING employmentStatus)
+  const pendingCandidates = applications.filter(a => a.employmentStatus === "PENDING");
+
+  const handleOpenPlacement = (app: Application) => {
+    setSelectedApp(app);
+    setGroupName(app.targetPositions[0]?.includes("舞台") ? "舞台控场组" : "门禁检票组");
+    setPositionName(app.targetPositions[0] || "舞台控场岗");
+    setAssignedDates(app.availableDates);
+    setIsLeader(false);
+  };
+
+  const handleConfirmHiring = async () => {
+    if (!selectedApp) return;
+    if (assignedDates.length === 0) {
+      showToast("请至少选择一个工作排班日期！", "error");
+      return;
+    }
+
+    // Call the store's action to employ the staff
+    employStaff(selectedApp.id, true, groupName, positionName);
+
+    // If marked as leader, elevate role to LEADER
+    if (isLeader) {
+      const { mockUsers } = await import("../../shared/mocks/data");
+      const u = mockUsers.find(user => user.id === selectedApp.userId);
+      if (u) u.role = "LEADER";
+
+      const { db } = await import("../../shared/api/mock-adapter");
+      const du = db.users.find(user => user.id === selectedApp.userId);
+      if (du) du.role = "LEADER";
+    }
+
+    // Automatically register empty AttendanceRecords for the chosen dates
+    const { useEventStore: eventStore } = await import("../../app/stores/eventStore");
+    const newRecords = assignedDates.map((date, idx) => ({
+      id: `ATT_GEN_${Date.now()}_${idx}`,
+      userId: selectedApp.userId,
+      userName: selectedApp.userName,
+      userPhone: selectedApp.userPhone,
+      groupName,
+      positionName,
+      activityId: selectedApp.activityId,
+      date,
+      status: "ABSENT" as const,
+      riskLevel: "LOW" as const
+    }));
+
+    eventStore.setState(state => ({
+      attendanceRecords: [...newRecords, ...state.attendanceRecords]
+    }));
+
+    showToast(`成功录用 ${selectedApp.userName} 为 ${isLeader ? "组长" : "STAFF"}，并为其在 ${assignedDates.join(", ")} 自动注册了出勤底片！`, "success");
+    setSelectedApp(null);
+  };
+
+  const isInterviewPassed = (app: Application) => {
+    return app.interviewStatus === "COMPLETED" || app.interviewStatus === "RECOMMENDED" || app.interviewStatus === "ATTENDED";
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div className="border-b border-black/5 pb-4">
-          <h2 className="text-xl font-bold text-[#1D1D1F]">特批免审录取中心</h2>
-          <p className="text-xs text-[#86868B] font-medium mt-1">对受邀漫展明星随行、VIP骨干或历史优秀STAFF进行一键特批免审录取。</p>
+          <h2 className="text-xl font-bold text-[#1D1D1F]">最终录用与岗前分配大盘</h2>
+          <p className="text-xs text-[#86868B] font-medium mt-1">处理通过报名筛选、实名面试及组长面评推荐的候选人，指派执行小组、会务岗位、具体工作排班。已完成面试验证的候选人方可办理录取。</p>
         </div>
 
-        <div className="bg-white border border-black/5 rounded-[22px] p-6 text-center space-y-4 max-w-xl mx-auto shadow-sm">
-          <span className="p-3.5 bg-blue-50 text-[#0A84FF] rounded-full inline-block">
-            <UserCheck size={28} />
+        {/* Candidate List */}
+        <div className="space-y-4">
+          <span className="text-[10px] font-extrabold text-[#86868B] uppercase tracking-wider block">
+            待录用终审候选人档案库 ({pendingCandidates.length})
           </span>
-          <h3 className="text-sm font-bold text-[#1D1D1F]">特批录入面板</h3>
-          <div className="space-y-3 text-left">
-            <div>
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">候选人手机号</label>
-              <input placeholder="请输入 11 位大陆有效手机号..." className="w-full p-3 bg-zinc-50 border border-black/5 rounded-2xl text-xs font-bold outline-none mt-1" />
+
+          {pendingCandidates.length === 0 ? (
+            <div className="text-center py-12 bg-white border border-black/5 rounded-[22px] text-zinc-400 text-xs font-semibold">
+              目前没有等待录用终审的候选人
             </div>
-            <div>
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">特批录用事由</label>
-              <input placeholder="例如：特邀舞台COSER随行保障，或历史金牌骨干STAFF免审..." className="w-full p-3 bg-zinc-50 border border-black/5 rounded-2xl text-xs font-bold outline-none mt-1" />
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {pendingCandidates.map((app) => {
+                const passed = isInterviewPassed(app);
+                return (
+                  <div key={app.id} className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-[#1D1D1F]">{app.userName}</h4>
+                        <span className="text-[10px] text-zinc-400 font-mono">（手机：{app.userPhone}）</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                          passed ? "bg-green-50 text-[#30D158]" : "bg-red-50 text-[#FF453A]"
+                        }`}>
+                          {passed ? "✓ 面试通过" : "✗ 尚未面试/签到"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 font-medium">
+                        意向岗位：{app.targetPositions.join(", ")} | 可服务日期：{app.availableDates.join(", ")}
+                      </p>
+                      {app.comment && (
+                        <p className="text-[10px] text-amber-600 bg-amber-50/50 px-2.5 py-1 rounded-lg inline-block font-bold">
+                          💡 组长评价：{app.comment}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      {passed ? (
+                        <button
+                          onClick={() => handleOpenPlacement(app)}
+                          className="px-4 py-2 bg-[#0A84FF] hover:bg-[#0A84FF]/90 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                        >
+                          ✨ 分配岗位并录取
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="px-4 py-2 bg-zinc-100 text-zinc-400 text-xs font-bold rounded-xl cursor-not-allowed border border-black/5"
+                        >
+                          🔒 待面试验证不可录
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <button 
-              onClick={() => alert("免审特招成功！对应成员已直接升级为 STAFF 级别并发出短信指引。")}
-              className="w-full py-3.5 bg-[#0A84FF] text-white text-xs font-bold rounded-2xl hover:bg-[#0A84FF]/95 transition-all cursor-pointer"
-            >
-              一键免审特招
-            </button>
-          </div>
+          )}
         </div>
+
+        {/* Placements & Hiring Configuration Dialog */}
+        {selectedApp && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-[28px] p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-scale-up">
+              <div className="flex justify-between items-center border-b border-black/5 pb-3">
+                <div>
+                  <h3 className="text-base font-black text-zinc-950">指派岗位与排班配置</h3>
+                  <p className="text-[10px] text-[#86868B] font-semibold mt-0.5">候选人：{selectedApp.userName}，意向岗位：{selectedApp.targetPositions.join(", ")}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedApp(null)}
+                  className="text-zinc-400 hover:text-zinc-600 text-sm font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs font-semibold">
+                {/* Group Selector */}
+                <div>
+                  <label className="text-[10px] text-zinc-400 block mb-1">分派执行小组</label>
+                  <select
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    className="w-full p-3 bg-zinc-50 border border-black/5 rounded-xl text-zinc-800 font-bold outline-none"
+                  >
+                    {availableGroups.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Position Selector */}
+                <div>
+                  <label className="text-[10px] text-zinc-400 block mb-1">指派会务岗位</label>
+                  <select
+                    value={positionName}
+                    onChange={(e) => setPositionName(e.target.value)}
+                    className="w-full p-3 bg-zinc-50 border border-black/5 rounded-xl text-zinc-800 font-bold outline-none"
+                  >
+                    {availablePositions.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date Selection Checkboxes */}
+                <div>
+                  <label className="text-[10px] text-zinc-400 block mb-1.5">排班出勤日期（打卡底片激活）</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["2026-07-11", "2026-07-12"].map((date) => {
+                      const isChecked = assignedDates.includes(date);
+                      return (
+                        <button
+                          type="button"
+                          key={date}
+                          onClick={() => {
+                            if (isChecked) {
+                              setAssignedDates(prev => prev.filter(d => d !== date));
+                            } else {
+                              setAssignedDates(prev => [...prev, date]);
+                            }
+                          }}
+                          className={`flex-1 py-2 rounded-xl border text-center font-bold transition-all ${
+                            isChecked
+                              ? "border-[#0A84FF] bg-[#0A84FF]/10 text-[#0A84FF]"
+                              : "border-zinc-200 text-zinc-500 bg-white"
+                          }`}
+                        >
+                          📅 {date}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Is Leader Switch */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 border border-black/5 rounded-xl">
+                  <div>
+                    <span className="text-[11px] font-bold text-zinc-800 block">任命为该组组长 (LEADER)</span>
+                    <span className="text-[9px] text-zinc-400">若勾选，其角色将直接晋升，并拥有审核该组组员考勤的特权。</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isLeader}
+                    onChange={(e) => setIsLeader(e.target.checked)}
+                    className="w-4 h-4 text-[#0A84FF] border-zinc-300 rounded cursor-pointer"
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2.5 pt-3 border-t border-black/5">
+                  <button
+                    onClick={() => setSelectedApp(null)}
+                    className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleConfirmHiring}
+                    className="flex-1 py-3 bg-[#30D158] hover:bg-[#30D158]/90 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    ✓ 确认录用入职
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );
@@ -917,25 +1143,49 @@ export const AdminAssignments: React.FC = () => {
 // 10. AdminAttendance (历史考勤归档底片)
 // ==========================================
 export const AdminAttendance: React.FC = () => {
-  const { attendanceRecords } = useEventStore();
+  const { showToast } = useEventStore();
+  const [search, setSearch] = useState("");
+  const { data: records, isLoading } = useAttendanceRecords({
+    search: search || undefined,
+  });
+
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="border-b border-black/5 pb-4">
-          <h2 className="text-xl font-bold text-[#1D1D1F]">历史考勤归档底片库</h2>
-          <p className="text-xs text-[#86868B] font-medium mt-1">查看、导出漫展多期活动的所有人员出勤、补签、请假及劳务结算结算明细。</p>
-        </div>
-
-        <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
-          <div className="flex justify-between items-center flex-wrap gap-2">
-            <span className="text-xs font-extrabold text-[#1D1D1F]">考勤记录历史总账表</span>
+        <div className="flex justify-between items-start border-b border-black/5 pb-4 flex-wrap gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-[#1D1D1F]">历史考勤归档底片库</h2>
+            <p className="text-xs text-[#86868B] font-medium mt-1">查看、导出漫展多期活动的所有人员出勤、补签、请假及劳务结算结算明细。</p>
+          </div>
+          <div className="flex gap-2">
+            <Link 
+              to="/admin/attendance/corrections"
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-zinc-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors"
+            >
+              <History size={14} /> 📑 查看人工修正审计台账
+            </Link>
             <button 
-              onClick={() => alert("考勤总台出勤底片及劳务对账单已成功生成！对账 Excel 报表已开始打包并下载至您的设备。")}
+              onClick={() => showToast("考勤总台出勤底片及劳务对账单已成功生成！对账 Excel 报表已开始打包并下载至您的设备。", "success")}
               className="px-4 py-2 bg-[#30D158] hover:bg-[#30D158]/95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
             >
               <FileSpreadsheet size={14} /> 导出考勤对账明细 Excel
             </button>
           </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="bg-white border border-black/5 rounded-[22px] p-4 shadow-sm flex items-center gap-3">
+          <input
+            type="text"
+            placeholder="🔍 搜索姓名、岗位名称或小组..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 text-xs font-semibold p-3 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:border-[#0A84FF] transition-colors"
+          />
+        </div>
+
+        <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+          <span className="text-xs font-extrabold text-[#1D1D1F]">考勤记录历史总账表</span>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-semibold">
@@ -944,24 +1194,53 @@ export const AdminAttendance: React.FC = () => {
                   <th className="py-2.5">姓名</th>
                   <th className="py-2.5">日期</th>
                   <th className="py-2.5">岗位</th>
+                  <th className="py-2.5">签到打卡</th>
+                  <th className="py-2.5">签退打卡</th>
                   <th className="py-2.5">出勤状态</th>
+                  <th className="py-2.5 text-right">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
-                {attendanceRecords.map((r) => (
-                  <tr key={r.id} className="text-[#1D1D1F]">
-                    <td className="py-2.5">{r.userName}</td>
-                    <td className="py-2.5 font-mono">{r.date}</td>
-                    <td className="py-2.5">{r.positionName}</td>
-                    <td className="py-2.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                        r.status === "NORMAL" ? "bg-green-50 text-[#30D158]" : "bg-amber-50 text-[#FF9F0A]"
-                      }`}>
-                        {r.status === "NORMAL" ? "正常" : "迟到"}
-                      </span>
-                    </td>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-6 text-zinc-400">正在加载考勤历史归档...</td>
                   </tr>
-                ))}
+                ) : !records || records.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-6 text-zinc-400">暂无任何考勤底片记录</td>
+                  </tr>
+                ) : (
+                  records.map((r) => (
+                    <tr key={r.id} className="text-[#1D1D1F] hover:bg-slate-50/50 transition-colors">
+                      <td className="py-2.5 font-bold">{r.userName}</td>
+                      <td className="py-2.5 font-mono">{r.date}</td>
+                      <td className="py-2.5">{r.positionName}</td>
+                      <td className="py-2.5 font-mono text-zinc-500">{r.checkInTime || "（无）"}</td>
+                      <td className="py-2.5 font-mono text-zinc-500">{r.checkOutTime || "（无）"}</td>
+                      <td className="py-2.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                          r.status === "NORMAL" 
+                            ? "bg-green-50 text-[#30D158]" 
+                            : r.status === "LATE"
+                              ? "bg-amber-50 text-[#FF9F0A]"
+                              : r.status === "EXCEPTIONAL"
+                                ? "bg-purple-50 text-[#BF5AF2]"
+                                : "bg-red-50 text-[#FF453A]"
+                        }`}>
+                          {r.status === "NORMAL" ? "正常" : r.status === "LATE" ? "迟到" : r.status === "EXCEPTIONAL" ? "异常" : "缺勤"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <Link 
+                          to={`/admin/attendance/${r.id}`}
+                          className="px-2.5 py-1 bg-[#0A84FF]/10 hover:bg-[#0A84FF]/20 text-[#0A84FF] text-[10px] font-black rounded-lg transition-colors inline-block"
+                        >
+                          核销与审计详情 →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -970,3 +1249,411 @@ export const AdminAttendance: React.FC = () => {
     </AdminLayout>
   );
 };
+
+// ==========================================
+// 11. AdminAttendanceDetail (考勤核销与人工修正详情)
+// ==========================================
+export const AdminAttendanceDetail: React.FC = () => {
+  const { attendanceId } = useParams<{ attendanceId: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const { showToast } = useEventStore();
+
+  const { data: record, isLoading: isRecordLoading } = useAttendanceById(attendanceId || "");
+  const { data: corrections, isLoading: isCorrectionsLoading } = useAttendanceCorrections(attendanceId);
+  const { data: pendingSuggestions } = useCorrectionSuggestions({ status: "PENDING" });
+
+  const correctMutation = useCorrectAttendance();
+  const approveMutation = useApproveCorrectionSuggestion();
+
+  // Manual input form state
+  const [newStatus, setNewStatus] = useState<any>("NORMAL");
+  const [newCheckInTime, setNewCheckInTime] = useState("");
+  const [newCheckOutTime, setNewCheckOutTime] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+
+  const pendingSug = pendingSuggestions?.find(s => s.attendanceId === attendanceId);
+
+  React.useEffect(() => {
+    if (record) {
+      setNewStatus(record.status);
+      setNewCheckInTime(record.checkInTime || "");
+      setNewCheckOutTime(record.checkOutTime || "");
+    }
+  }, [record]);
+
+  const handleManualCorrect = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!correctionReason.trim()) {
+      showToast("请填写人工修正的原因！此项内容将写入系统审计日志。", "error");
+      return;
+    }
+    if (!record) return;
+
+    correctMutation.mutate({
+      attendanceId: record.id,
+      update: {
+        status: newStatus,
+        checkInTime: newCheckInTime || undefined,
+        checkOutTime: newCheckOutTime || undefined,
+        reason: correctionReason
+      },
+      operatorId: user?.id || "ADMIN_M",
+      operatorName: user?.name || "系统管理员"
+    }, {
+      onSuccess: () => {
+        showToast(`已成功人工修正 ${record.userName} 的考勤结果，并记入系统审计台账。`, "success");
+        setCorrectionReason("");
+      },
+      onError: (err: any) => {
+        showToast(`修改失败: ${err.message}`, "error");
+      }
+    });
+  };
+
+  const handleApproveSuggestion = (status: "APPROVED" | "REJECTED") => {
+    if (!pendingSug) return;
+    approveMutation.mutate({
+      suggestionId: pendingSug.id,
+      status,
+      adminId: user?.id || "ADMIN_M"
+    }, {
+      onSuccess: () => {
+        showToast(status === "APPROVED" ? "已批准该考勤补签申请，数据已完成更新。" : "已驳回该补签申请。", "success");
+      },
+      onError: (err: any) => {
+        showToast(`操作失败: ${err.message}`, "error");
+      }
+    });
+  };
+
+  if (isRecordLoading || !record) {
+    return (
+      <AdminLayout>
+        <div className="p-10 text-center text-zinc-400 font-semibold text-xs">
+          正在读取打卡原始底片及审计底账...
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        {/* Header navigation */}
+        <div className="flex items-center gap-3 border-b border-black/5 pb-4">
+          <button 
+            onClick={() => navigate("/admin/attendance")}
+            className="p-1.5 hover:bg-slate-100 rounded-full text-zinc-600 transition-colors cursor-pointer"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <h2 className="text-lg font-extrabold text-[#1D1D1F]">考勤底片核销与修正审计</h2>
+            <p className="text-[10px] text-zinc-400 font-medium">考勤记录ID: {record.id}</p>
+          </div>
+        </div>
+
+        {/* Info Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* User & Group Info */}
+          <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+            <div className="flex items-center gap-3">
+              {record.photoUrl ? (
+                <img 
+                  src={record.photoUrl} 
+                  alt="打卡自拍" 
+                  className="w-12 h-12 rounded-full object-cover border border-zinc-100"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-12 h-12 bg-blue-50 text-[#0A84FF] rounded-full flex items-center justify-center font-black text-sm">
+                  {record.userName.substring(0, 1)}
+                </div>
+              )}
+              <div>
+                <h3 className="text-sm font-black text-zinc-800">{record.userName}</h3>
+                <span className="text-[10px] text-zinc-400 block font-mono mt-0.5">{record.positionName}</span>
+              </div>
+            </div>
+
+            <div className="divide-y divide-zinc-50 pt-2 text-xs font-semibold">
+              <div className="py-2.5 flex justify-between">
+                <span className="text-zinc-400">所属小组</span>
+                <span className="text-zinc-800">{record.groupName}</span>
+              </div>
+              <div className="py-2.5 flex justify-between">
+                <span className="text-zinc-400">排班日期</span>
+                <span className="text-zinc-800 font-mono">{record.date}</span>
+              </div>
+              <div className="py-2.5 flex justify-between">
+                <span className="text-zinc-400">当前判定状态</span>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                  record.status === "NORMAL" 
+                    ? "bg-green-50 text-[#30D158]" 
+                    : record.status === "LATE"
+                      ? "bg-amber-50 text-[#FF9F0A]"
+                      : record.status === "EXCEPTIONAL"
+                        ? "bg-purple-50 text-[#BF5AF2]"
+                        : "bg-red-50 text-[#FF453A]"
+                }`}>
+                  {record.status === "NORMAL" ? "正常出勤" : record.status === "LATE" ? "迟到" : record.status === "EXCEPTIONAL" ? "GPS异常" : "缺勤"}
+                </span>
+              </div>
+            </div>
+
+            {/* GPS Detail */}
+            <div className="p-3.5 bg-slate-50 border border-zinc-100 rounded-xl text-xs space-y-2 font-semibold">
+              <span className="text-[9px] text-zinc-400 block uppercase tracking-wide">考勤自拍及GPS原始底片</span>
+              <div className="flex justify-between">
+                <span className="text-zinc-400">打卡精度:</span>
+                <span className="text-zinc-800 font-mono">15m (高精度)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-400">签到位置偏差:</span>
+                <span className="text-zinc-800 font-mono">{record.checkInDistance !== undefined ? `${record.checkInDistance} 米` : "（无记录）"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-400">签退位置偏差:</span>
+                <span className="text-zinc-800 font-mono">{record.checkOutDistance !== undefined ? `${record.checkOutDistance} 米` : "（无记录）"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Form & Actions */}
+          <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-5 md:col-span-2">
+            {/* Pending Leader Suggestion alert */}
+            {pendingSug && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3 font-semibold text-xs animate-scale-up">
+                <div className="flex justify-between items-center">
+                  <span className="text-amber-800 font-extrabold flex items-center gap-1">
+                    <Clock size={14} className="animate-spin" /> 收到来自组长【{pendingSug.leaderName || "组长"}】提交的补签修正建议
+                  </span>
+                  <span className="text-[8px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                    待管理员审核
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-zinc-600 font-normal">
+                  <p>更正目标: <span className="font-semibold text-zinc-800">{pendingSug.suggestedType === "CHECK_IN" ? "签到打卡" : "签退打卡"}</span></p>
+                  <p>更正状态: <span className="font-semibold text-zinc-800">{pendingSug.suggestedStatus === "NORMAL" ? "正常" : "迟到"}</span></p>
+                  <p>建议时间: <span className="font-semibold font-mono text-zinc-800">{pendingSug.suggestedTime || "未指定"}</span></p>
+                  <p className="col-span-2">申请原因: <span className="font-semibold text-zinc-800 italic">“{pendingSug.reason}”</span></p>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button 
+                    onClick={() => handleApproveSuggestion("APPROVED")}
+                    disabled={approveMutation.isPending}
+                    className="flex-1 py-1.5 bg-[#30D158] hover:bg-[#30D158]/95 text-white font-bold text-xs rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                  >
+                    <CheckCircle size={12} /> 同意并自动修正
+                  </button>
+                  <button 
+                    onClick={() => handleApproveSuggestion("REJECTED")}
+                    disabled={approveMutation.isPending}
+                    className="py-1.5 px-4 bg-red-50 hover:bg-red-100 text-[#FF453A] font-bold text-xs rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                  >
+                    <XCircle size={12} /> 驳回
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Manual correction form */}
+            <form onSubmit={handleManualCorrect} className="space-y-4 text-xs font-semibold">
+              <span className="text-xs font-extrabold text-zinc-800 block">管理员高级人工修正</span>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1">更正出勤判定</label>
+                  <select 
+                    value={newStatus} 
+                    onChange={(e) => setNewStatus(e.target.value)}
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl outline-none"
+                  >
+                    <option value="NORMAL">正常 (NORMAL)</option>
+                    <option value="LATE">迟到 (LATE)</option>
+                    <option value="ABSENT">缺勤 (ABSENT)</option>
+                    <option value="EXCEPTIONAL">GPS异常 (EXCEPTIONAL)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1">签到打卡时间</label>
+                  <input 
+                    type="text" 
+                    value={newCheckInTime} 
+                    onChange={(e) => setNewCheckInTime(e.target.value)}
+                    placeholder="HH:MM:SS"
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl font-mono text-zinc-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1">签退打卡时间</label>
+                  <input 
+                    type="text" 
+                    value={newCheckOutTime} 
+                    onChange={(e) => setNewCheckOutTime(e.target.value)}
+                    placeholder="HH:MM:SS"
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl font-mono text-zinc-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1">
+                  修正审核意见与原因 <span className="text-red-500">*必填（作为审计凭证）</span>
+                </label>
+                <textarea 
+                  rows={2}
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                  placeholder="请输入修正此次考勤的具体业务理由，例如：经后台照片人工复核，定位漂移确属展馆5G信号拥堵所致..."
+                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-medium leading-relaxed outline-none focus:border-[#0A84FF] transition-colors"
+                />
+              </div>
+
+              <button 
+                type="submit"
+                disabled={correctMutation.isPending}
+                className="w-full py-3 bg-[#0A84FF] hover:bg-[#0A84FF]/95 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {correctMutation.isPending ? "正在提交人工修正..." : "⚡ 确认人工修正并写入系统审计库"}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Audit timeline section */}
+        <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+          <div className="flex items-center gap-2">
+            <FileClock size={16} className="text-[#0A84FF]" />
+            <span className="text-xs font-extrabold text-[#1D1D1F]">该考勤记录的人工修正审计时间线 (Audit Log)</span>
+          </div>
+
+          <div className="space-y-4">
+            {isCorrectionsLoading ? (
+              <div className="text-zinc-400 text-xs py-2 text-center">正在读取修正审计流...</div>
+            ) : !corrections || corrections.length === 0 ? (
+              <div className="text-zinc-400 text-xs py-4 text-center bg-slate-50 border border-black/5 rounded-xl font-medium">
+                无任何人工修正操作记录，该考勤记录为打卡底片原始数据。
+              </div>
+            ) : (
+              <div className="relative border-l-2 border-slate-100 pl-4 ml-2 space-y-4 text-xs font-semibold">
+                {corrections.map((corr) => (
+                  <div key={corr.id} className="relative animate-scale-up">
+                    {/* Circle icon */}
+                    <span className="absolute -left-[21px] top-0.5 bg-[#30D158] w-2.5 h-2.5 rounded-full border border-white shadow-sm" />
+                    
+                    <div className="bg-slate-50 border border-black/5 p-3 rounded-xl space-y-1">
+                      <div className="flex justify-between items-center flex-wrap gap-1">
+                        <span className="text-zinc-800">
+                          由管理员 <span className="font-black text-[#0A84FF]">{corr.operatorName}</span> 修正
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-mono">{corr.createdAt}</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 py-1.5 text-zinc-600 font-normal">
+                        <div>
+                          <p className="text-[9px] text-zinc-400">更正前出勤</p>
+                          <span className="font-semibold">{corr.before.status === "NORMAL" ? "正常" : "迟到/异常"}</span>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-[#30D158]">更正后出勤</p>
+                          <span className="font-bold text-[#30D158]">{corr.after.status === "NORMAL" ? "正常" : "迟到/异常"}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-zinc-500 font-medium pt-1.5 border-t border-black/5">
+                        修正凭证原因: <span className="text-zinc-800 italic">“{corr.reason}”</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+
+// ==========================================
+// 12. AdminAttendanceCorrections (系统人工考勤修正总台账)
+// ==========================================
+export const AdminAttendanceCorrections: React.FC = () => {
+  const navigate = useNavigate();
+  const { data: corrections, isLoading } = useAttendanceCorrections();
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        {/* Header navigation */}
+        <div className="flex items-center gap-3 border-b border-black/5 pb-4">
+          <button 
+            onClick={() => navigate("/admin/attendance")}
+            className="p-1.5 hover:bg-slate-100 rounded-full text-zinc-600 transition-colors cursor-pointer"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <h2 className="text-lg font-extrabold text-[#1D1D1F]">人工考勤修正审计大账表</h2>
+            <p className="text-xs text-[#86868B] font-medium mt-0.5">记录全站所有 STAFF 出勤底片修改的操作流，严控虚假打卡防作弊。</p>
+          </div>
+        </div>
+
+        <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+          <span className="text-xs font-extrabold text-zinc-800 block">全站人工修正审计明细清单</span>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-semibold">
+              <thead>
+                <tr className="border-b border-zinc-100 text-zinc-400">
+                  <th className="py-2.5">记录 ID</th>
+                  <th className="py-2.5">时间</th>
+                  <th className="py-2.5">操作管理员</th>
+                  <th className="py-2.5">变更前状态</th>
+                  <th className="py-2.5">变更后状态</th>
+                  <th className="py-2.5">修正原因凭证</th>
+                  <th className="py-2.5 text-right">查看</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-6 text-zinc-400">正在调取系统高级审计档案记录...</td>
+                  </tr>
+                ) : !corrections || corrections.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-6 text-zinc-400">暂无任何人工考勤修正审计记录</td>
+                  </tr>
+                ) : (
+                  corrections.map((corr) => (
+                    <tr key={corr.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-2.5 font-mono text-zinc-500">{corr.id.substring(0, 8)}...</td>
+                      <td className="py-2.5 font-mono text-zinc-500">{corr.createdAt}</td>
+                      <td className="py-2.5 font-bold text-zinc-800">{corr.operatorName}</td>
+                      <td className="py-2.5 font-mono text-zinc-400">{corr.before.status}</td>
+                      <td className="py-2.5 font-mono text-zinc-800 font-extrabold text-[#30D158]">{corr.after.status}</td>
+                      <td className="py-2.5 max-w-xs truncate text-zinc-600 font-medium">{corr.reason}</td>
+                      <td className="py-2.5 text-right">
+                        <Link 
+                          to={`/admin/attendance/${corr.attendanceId}`}
+                          className="text-[#0A84FF] hover:underline text-[10px]"
+                        >
+                          追溯底片 →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+

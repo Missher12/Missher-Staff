@@ -118,12 +118,25 @@ export const apiClient = {
     return (await res.json()).success;
   },
 
-  async checkinInterview(slotId: string, applicantPhoneOrId: string, operatorId: string) {
-    if (isMock()) return mockApiAdapter.checkinInterview(slotId, applicantPhoneOrId, operatorId);
+  async generateInterviewToken(userId: string, slotId: string, activityId: string) {
+    if (isMock()) return mockApiAdapter.generateInterviewToken(userId, slotId, activityId);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/interviews/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, slotId, activityId })
+    });
+    return (await res.json()).data;
+  },
+
+  async checkinInterview(tokenOrSlotId: string, operatorIdOrApplicant: string, maybeOperatorId?: string) {
+    if (isMock()) return mockApiAdapter.checkinInterview(tokenOrSlotId, operatorIdOrApplicant, maybeOperatorId);
+    const body = maybeOperatorId 
+      ? { slotId: tokenOrSlotId, applicantPhoneOrId: operatorIdOrApplicant, operatorId: maybeOperatorId }
+      : { token: tokenOrSlotId, operatorId: operatorIdOrApplicant };
     const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/interviews/checkin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slotId, applicantPhoneOrId, operatorId })
+      body: JSON.stringify(body)
     });
     return (await res.json()).data;
   },
@@ -160,6 +173,13 @@ export const apiClient = {
   async getAttendanceById(id: string) {
     if (isMock()) return mockApiAdapter.getAttendanceById(id);
     const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/attendance/${id}`);
+    return (await res.json()).data;
+  },
+
+  async getAttendanceCorrections(attendanceId?: string) {
+    if (isMock()) return mockApiAdapter.getAttendanceCorrections(attendanceId);
+    const url = attendanceId ? `${import.meta.env.VITE_API_BASE_URL}/attendance-corrections?attendanceId=${attendanceId}` : `${import.meta.env.VITE_API_BASE_URL}/attendance-corrections`;
+    const res = await fetch(url);
     return (await res.json()).data;
   },
 
