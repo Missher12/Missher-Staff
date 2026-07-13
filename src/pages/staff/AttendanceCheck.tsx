@@ -6,14 +6,23 @@ import { MobileLayout } from "../../app/layouts/MobileLayout";
 import { LocationCapture, CameraCapture, ConfirmDialog } from "../../shared/ui";
 import { ArrowLeft, CheckCircle, AlertCircle, RefreshCw, Send } from "lucide-react";
 
+import { useAttendanceRecords, useSubmitAttendanceMutation } from "../../shared/hooks/useQueries";
+
 export const AttendanceCheck: React.FC = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const { attendanceRecords, submitAttendance, showToast } = useEventStore();
+  const { showToast } = useEventStore();
 
   // 1. 判断是签到还是签退 (假定今日为 2026-07-11)
+  const { data: attendanceRecords = [] } = useAttendanceRecords({
+    userId: user?.id,
+    date: "2026-07-11"
+  });
+
   const todayRecord = attendanceRecords.find(r => r.userId === user?.id && r.date === "2026-07-11");
   const isCheckOutMode = !!todayRecord?.checkInTime;
+
+  const submitMutation = useSubmitAttendanceMutation();
 
   // 2. 表单收集状态
   const [gpsLocation, setGpsLocation] = useState("");
@@ -58,34 +67,24 @@ export const AttendanceCheck: React.FC = () => {
 
     // 组装数据并提交
     const recordPayload = {
-      userId: user?.id || "",
-      userName: user?.name || "",
-      userPhone: user?.phone || "",
-      groupName: "舞台控场组", // 默认
-      positionName: "舞台控场岗", // 默认
       activityId: "ACT_2026_01",
       date: "2026-07-11",
-      ...(isCheckOutMode 
-        ? { 
-            checkOutTime: currentTimeString, 
-            checkOutPhoto: selfiePhoto, 
-            checkOutLocation: gpsLocation, 
-            checkOutDistance: gpsDistance 
-          } 
-        : { 
-            checkInTime: currentTimeString, 
-            checkInPhoto: selfiePhoto, 
-            checkInLocation: gpsLocation, 
-            checkInDistance: gpsDistance 
-          }
-      )
+      time: currentTimeString,
+      photo: selfiePhoto,
+      location: gpsLocation,
+      distance: gpsDistance || 0,
+      type: isCheckOutMode ? "CHECK_OUT" : "CHECK_IN" as const
     };
 
     try {
-      const res = await submitAttendance(recordPayload);
+      const res = await submitMutation.mutateAsync({
+        userId: user?.id || "",
+        data: recordPayload
+      });
       setPunchResult(res);
-    } catch (err) {
-      showToast("考勤数据上传异常，请重新提交", "error");
+      showToast(isCheckOutMode ? "下午签退打卡成功" : "上午签到打卡成功", "success");
+    } catch (err: any) {
+      showToast(err.message || "考勤数据上传异常，请重新提交", "error");
     } finally {
       setIsSubmitting(false);
     }

@@ -269,28 +269,58 @@ export const StaffLeave: React.FC = () => {
 // 5. StaffAnnouncements (公告消息中心)
 // ==========================================
 export const StaffAnnouncements: React.FC = () => {
-  const { announcements } = useEventStore();
+  const { user } = useAuthStore();
+  const { data: announcements = [], isLoading } = useAnnouncements();
+  const confirmMutation = useConfirmAnnouncement();
+
+  if (isLoading) {
+    return (
+      <StaffLayout title="最新会务公告">
+        <div className="text-center py-20 text-xs text-zinc-400 font-semibold animate-pulse">
+          正在读取会务公告...
+        </div>
+      </StaffLayout>
+    );
+  }
+
   return (
     <StaffLayout title="最新会务公告">
       <div className="space-y-3">
-        {announcements.map((ann) => (
-          <div key={ann.id} className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-2xl p-4.5 shadow-sm space-y-2 relative overflow-hidden">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${
-                  ann.isRequiredConfirm ? "bg-red-50 text-[#FF453A]" : "bg-blue-50 text-[#0A84FF]"
-                }`}>
-                  {ann.isRequiredConfirm ? "紧急考勤强制确认" : "常规公告"}
-                </span>
-                <h3 className="text-xs font-bold text-[#1D1D1F] mt-1.5">{ann.title}</h3>
+        {announcements.map((ann) => {
+          const isConfirmed = ann.confirmedUserIds?.includes(user?.id || "");
+          return (
+            <div key={ann.id} className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-2xl p-4.5 shadow-sm space-y-3 relative overflow-hidden">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${
+                    ann.isRequiredConfirm ? "bg-red-50 text-[#FF453A]" : "bg-blue-50 text-[#0A84FF]"
+                  }`}>
+                    {ann.isRequiredConfirm ? "紧急考勤强制确认" : "常规公告"}
+                  </span>
+                  <h3 className="text-xs font-bold text-[#1D1D1F] mt-1.5">{ann.title}</h3>
+                </div>
+                <span className="text-[9px] font-mono text-zinc-400 shrink-0">{ann.publishDate}</span>
               </div>
-              <span className="text-[9px] font-mono text-zinc-400 shrink-0">{ann.publishDate}</span>
+              <p className="text-xs text-[#86868B] leading-relaxed font-medium">
+                {ann.content}
+              </p>
+              
+              <div className="flex justify-between items-center pt-2 border-t border-zinc-50">
+                <span className="text-[9px] text-zinc-400 font-semibold">
+                  确认状态：{isConfirmed ? "✅ 已签署确认" : "⏳ 待签署确认"}
+                </span>
+                {!isConfirmed && (
+                  <button
+                    onClick={() => confirmMutation.mutate({ announcementId: ann.id, userId: user?.id || "" })}
+                    className="px-3 py-1.5 bg-[#0A84FF] text-white text-[10px] font-bold rounded-lg hover:bg-[#0A84FF]/90 transition-all cursor-pointer"
+                  >
+                    确认签署并知悉
+                  </button>
+                )}
+              </div>
             </div>
-            <p className="text-xs text-[#86868B] leading-relaxed font-medium">
-              {ann.content}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </StaffLayout>
   );

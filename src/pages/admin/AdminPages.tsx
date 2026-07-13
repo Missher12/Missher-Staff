@@ -17,7 +17,9 @@ import {
   useAnnouncements,
   useCreateAnnouncement,
   useLeaveRequests,
-  useAuditLeaveRequest
+  useAuditLeaveRequest,
+  useApplications,
+  useFinalAdmission
 } from "../../shared/hooks/useQueries";
 import { 
   Users, UserCheck, ShieldCheck, Megaphone, FileText, 
@@ -754,11 +756,24 @@ export const AdminInterviews: React.FC = () => {
 // 6. AdminAttendanceRealtime (实时核销监控)
 // ==========================================
 export const AdminAttendanceRealtime: React.FC = () => {
-  const { attendanceRecords, updateAttendanceStatus, showToast } = useEventStore();
+  const { showToast } = useEventStore();
+  const { data: attendanceRecords = [], isLoading } = useAttendanceRecords({
+    activityId: "ACT_2026_01"
+  });
 
   const handleRefresh = () => {
     showToast("现场考勤GPS底片和双特征水印已实时拉取并完成秒级校对。", "success");
   };
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="text-center py-20 text-xs text-zinc-400 font-semibold animate-pulse">
+          正在加载实时核销流水与底片...
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -864,7 +879,7 @@ export const AdminAttendanceRealtime: React.FC = () => {
 // 7. AdminAdmissions (最终录用与分配中心)
 // ==========================================
 export const AdminAdmissions: React.FC = () => {
-  const { applications, employStaff, showToast } = useEventStore();
+  const { showToast } = useEventStore();
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   
   // Modal configurations
@@ -876,6 +891,10 @@ export const AdminAdmissions: React.FC = () => {
   // Default dropdown selections
   const availableGroups = ["舞台控场组", "门禁检票组", "后勤机动组", "摄影宣传组"];
   const availablePositions = ["舞台控场岗", "门禁检票岗", "后勤机动岗", "摄影/自媒体岗", "秩序疏导岗"];
+
+  // Fetch applications using React Query hook
+  const { data: applications = [], isLoading } = useApplications({ activityId: "ACT_2026_01" });
+  const finalAdmissionMutation = useFinalAdmission();
 
   // Filter candidates who have applied and are NOT yet employed/rejected (PENDING employmentStatus)
   const pendingCandidates = applications.filter(a => a.employmentStatus === "PENDING");
@@ -895,41 +914,34 @@ export const AdminAdmissions: React.FC = () => {
       return;
     }
 
-    // Call the store's action to employ the staff
-    employStaff(selectedApp.id, true, groupName, positionName);
+    const groupId = groupName === "舞台控场组" ? "GRP_01" : groupName === "门禁检票组" ? "GRP_02" : "GRP_DEFAULT";
+    const positionId = positionName === "舞台控场岗" ? "POS_STAGE" : positionName === "门禁检票岗" ? "POS_TICKET" : "POS_DEFAULT";
 
-    // If marked as leader, elevate role to LEADER
-    if (isLeader) {
-      const { mockUsers } = await import("../../shared/mocks/data");
-      const u = mockUsers.find(user => user.id === selectedApp.userId);
-      if (u) u.role = "LEADER";
+    try {
+      await finalAdmissionMutation.mutateAsync({
+        applicationId: selectedApp.id,
+        status: "EMPLOYED",
+        groupId,
+        positionId,
+        assignedDates,
+      });
 
-      const { db } = await import("../../shared/api/mock-adapter");
-      const du = db.users.find(user => user.id === selectedApp.userId);
-      if (du) du.role = "LEADER";
+      // If marked as leader, elevate role to LEADER
+      if (isLeader) {
+        const { mockUsers } = await import("../../shared/mocks/data");
+        const u = mockUsers.find(user => user.id === selectedApp.userId);
+        if (u) u.role = "LEADER";
+
+        const { db } = await import("../../shared/api/mock-adapter");
+        const du = db.users.find(user => user.id === selectedApp.userId);
+        if (du) du.role = "LEADER";
+      }
+
+      showToast(`成功录用 ${selectedApp.userName} 为 ${isLeader ? "组长" : "STAFF"}，并为其在 ${assignedDates.join(", ")} 自动注册了出勤底片！`, "success");
+      setSelectedApp(null);
+    } catch (err: any) {
+      showToast(err.message || "录取操作失败", "error");
     }
-
-    // Automatically register empty AttendanceRecords for the chosen dates
-    const { useEventStore: eventStore } = await import("../../app/stores/eventStore");
-    const newRecords = assignedDates.map((date, idx) => ({
-      id: `ATT_GEN_${Date.now()}_${idx}`,
-      userId: selectedApp.userId,
-      userName: selectedApp.userName,
-      userPhone: selectedApp.userPhone,
-      groupName,
-      positionName,
-      activityId: selectedApp.activityId,
-      date,
-      status: "ABSENT" as const,
-      riskLevel: "LOW" as const
-    }));
-
-    eventStore.setState(state => ({
-      attendanceRecords: [...newRecords, ...state.attendanceRecords]
-    }));
-
-    showToast(`成功录用 ${selectedApp.userName} 为 ${isLeader ? "组长" : "STAFF"}，并为其在 ${assignedDates.join(", ")} 自动注册了出勤底片！`, "success");
-    setSelectedApp(null);
   };
 
   const isInterviewPassed = (app: Application) => {

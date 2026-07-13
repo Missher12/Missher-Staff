@@ -42,12 +42,15 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) 
   return <>{children}</>;
 };
 
+import { useAnnouncements, useConfirmAnnouncement } from "../../shared/hooks/useQueries";
+
 // ==========================================
 // 2. AnnouncementGuard (公告强制确认阻挡器)
 // ==========================================
 export const AnnouncementGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuthStore();
-  const { announcements, confirmAnnouncement } = useEventStore();
+  const { data: announcements = [] } = useAnnouncements();
+  const confirmMutation = useConfirmAnnouncement();
   const location = useLocation();
 
   // 如果没有登录，或者在登录页，或者访问的是公开路由，放行
@@ -110,7 +113,7 @@ export const AnnouncementGuard: React.FC<{ children: React.ReactNode }> = ({ chi
               <span className="text-[#FF9F0A] font-semibold">阻挡确认后方可解锁考勤定位</span>
             </div>
 
-            <div className="h-px bg-zinc-100" />
+            <div className="h-px bg-zinc-100 block" />
 
             <div className="text-sm text-[#1D1D1F] leading-relaxed whitespace-pre-wrap py-2 font-medium bg-slate-50/50 p-4 rounded-2xl border border-black/5">
               {pendingUrgentAnn.content}
@@ -124,7 +127,7 @@ export const AnnouncementGuard: React.FC<{ children: React.ReactNode }> = ({ chi
 
           <div className="mt-8 pt-4 border-t border-black/5 flex justify-end">
             <button
-              onClick={() => confirmAnnouncement(pendingUrgentAnn.id, user.id)}
+              onClick={() => confirmMutation.mutate({ announcementId: pendingUrgentAnn.id, userId: user.id })}
               className="w-full md:w-auto px-8 py-3.5 bg-[#0A84FF] text-white font-bold text-xs rounded-full hover:bg-[#0A84FF]/90 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-[0.98]"
             >
               <Check size={16} />

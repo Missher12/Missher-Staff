@@ -10,7 +10,11 @@ import {
   useCorrectionSuggestions,
   useAttendanceById,
   useAttendanceCorrections,
-  usePeople
+  usePeople,
+  useAnnouncements,
+  useConfirmAnnouncement,
+  useLeaveRequests,
+  useAuditLeaveRequest
 } from "../../shared/hooks/useQueries";
 import { 
   Users, MapPin, Scan, CheckCircle, Clock, 
@@ -21,8 +25,41 @@ import {
 // 1. LeaderDashboard (组长工作大盘)
 // ==========================================
 export const LeaderDashboard: React.FC = () => {
-  const { attendanceRecords, groups } = useEventStore();
-  const leaderGroup = groups[0] || { name: "舞台控场组", memberIds: [] };
+  const { user } = useAuthStore();
+  const { data: groups, isLoading: isLoadingGroups } = useGroups("ACT_2026_01");
+  const leaderGroup = groups?.find(g => g.leaderId === user?.id);
+
+  const { data: attendanceRecords = [], isLoading: isLoadingAttendance } = useAttendanceRecords({
+    activityId: "ACT_2026_01"
+  });
+
+  if (isLoadingGroups || isLoadingAttendance) {
+    return (
+      <LeaderLayout title="组长管理工作台">
+        <div className="text-center py-20 text-xs text-zinc-400 font-semibold">
+          正在加载小组与考勤数据...
+        </div>
+      </LeaderLayout>
+    );
+  }
+
+  if (!leaderGroup) {
+    return (
+      <LeaderLayout title="403 无管理权限">
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+          <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-[28px] p-8 max-w-sm shadow-sm space-y-4">
+            <div className="w-16 h-16 bg-red-50 border border-red-100 rounded-full flex items-center justify-center mx-auto text-[#FF453A]">
+              <AlertTriangle size={32} />
+            </div>
+            <h1 className="text-lg font-black text-[#1D1D1F]">403 - 组长权限受限</h1>
+            <p className="text-xs text-[#86868B] leading-relaxed font-semibold">
+              当前活动、GroupLeaderAssignment、GroupMembership 校验未通过：您未被授权负责该会期的任何小组。
+            </p>
+          </div>
+        </div>
+      </LeaderLayout>
+    );
+  }
 
   // Filter records belonging to members of leader's group
   const groupRecords = attendanceRecords.filter(r => 
@@ -133,13 +170,41 @@ export const LeaderDashboard: React.FC = () => {
 // ==========================================
 export const LeaderMembers: React.FC = () => {
   const { user } = useAuthStore();
-  const { data: groups } = useGroups("ACT_2026_01");
+  const { data: groups, isLoading: isLoadingGroups } = useGroups("ACT_2026_01");
   const { data: people = [], isLoading: isLoadingPeople } = usePeople();
 
-  const leaderGroup = groups?.find(g => g.leaderId === user?.id) || groups?.[0];
+  const leaderGroup = groups?.find(g => g.leaderId === user?.id);
+
+  if (isLoadingGroups || isLoadingPeople) {
+    return (
+      <LeaderLayout title="本小组组员通讯录">
+        <div className="text-center py-20 text-xs text-zinc-400 font-semibold">
+          正在读取小组与成员名单...
+        </div>
+      </LeaderLayout>
+    );
+  }
+
+  if (!leaderGroup) {
+    return (
+      <LeaderLayout title="403 无管理权限">
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+          <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-[28px] p-8 max-w-sm shadow-sm space-y-4">
+            <div className="w-16 h-16 bg-red-50 border border-red-100 rounded-full flex items-center justify-center mx-auto text-[#FF453A]">
+              <AlertTriangle size={32} />
+            </div>
+            <h1 className="text-lg font-black text-[#1D1D1F]">403 - 组长权限受限</h1>
+            <p className="text-xs text-[#86868B] leading-relaxed font-semibold">
+              当前活动、GroupLeaderAssignment、GroupMembership 校验未通过：您未被授权负责该会期的任何小组。
+            </p>
+          </div>
+        </div>
+      </LeaderLayout>
+    );
+  }
 
   // Map member IDs to user profiles
-  const members = (people || []).filter(p => leaderGroup?.memberIds.includes(p.id)).map(p => {
+  const members = (people || []).filter(p => leaderGroup.memberIds.includes(p.id)).map(p => {
     return {
       id: p.id,
       name: p.name,
@@ -377,71 +442,139 @@ export const LeaderInterviewScan: React.FC = () => {
 // 4. LeaderLeaveReviews (组员请假审批)
 // ==========================================
 export const LeaderLeaveReviews: React.FC = () => {
+  const { user } = useAuthStore();
   const { showToast } = useEventStore();
-  const [requests, setRequests] = useState([
-    { id: "L_REQ_01", userName: "苏苏", date: "2026-07-12", reason: "学校有紧急论文答辩需要请假半天", status: "PENDING" }
-  ]);
+  const { data: groups = [], isLoading: isLoadingGroups } = useGroups("ACT_2026_01");
+  const { data: leaves = [], isLoading: isLoadingLeaves } = useLeaveRequests({});
+  const auditMutation = useAuditLeaveRequest();
 
-  const handleAudit = (id: string, accept: boolean) => {
-    setRequests(prev => prev.map(r => {
-      if (r.id === id) {
-        return { ...r, status: accept ? "APPROVED" : "REJECTED" };
-      }
-      return r;
-    }));
-    showToast(accept ? "请假批准通过！已流转至总后台会务总监进行终审确认。" : "请假驳回，已通过系统短信通知组员。", accept ? "success" : "info");
+  const leaderGroup = groups.find((g) => g.leaderId === user?.id);
+
+  if (isLoadingGroups || isLoadingLeaves) {
+    return (
+      <LeaderLayout title="初审组员请假申请">
+        <div className="text-center py-20 text-xs text-zinc-400 font-semibold animate-pulse">
+          正在读取请假申请档案...
+        </div>
+      </LeaderLayout>
+    );
+  }
+
+  if (!leaderGroup) {
+    return (
+      <LeaderLayout title="初审组员请假申请">
+        <div className="text-center py-12 bg-white border border-black/5 rounded-[22px] text-zinc-400 text-xs font-semibold">
+          您当前没有管理任何小组，无权初审请假。
+        </div>
+      </LeaderLayout>
+    );
+  }
+
+  // Filter leave requests: User must be in leader's group
+  const groupLeaves = leaves.filter((l) => leaderGroup.memberIds.includes(l.userId));
+  const pendingLeaves = groupLeaves.filter((l) => l.status === "PENDING_LEADER");
+  const historyLeaves = groupLeaves.filter((l) => l.status !== "PENDING_LEADER");
+
+  const handleAudit = async (id: string, accept: boolean) => {
+    try {
+      await auditMutation.mutateAsync({
+        id,
+        status: accept ? "APPROVED" : "REJECTED", // approved by leader becomes PENDING_ADMIN in the mock adapter
+        comment: accept ? "组长初审通过" : "组长初审驳回",
+        auditorId: user?.id || "",
+        role: "LEADER",
+      });
+      showToast(
+        accept
+          ? "请假初审批准通过！已流转至总后台会务总监进行终审确认。"
+          : "请假初审驳回，对应组员的请假单已被拒绝。",
+        accept ? "success" : "info"
+      );
+    } catch (err: any) {
+      showToast(err.message || "请假审批操作失败", "error");
+    }
   };
 
   return (
     <LeaderLayout title="初审组员请假申请">
-      <div className="space-y-3">
-        <span className="text-[10px] font-extrabold text-[#86868B] uppercase tracking-wider block">待初审的请假条</span>
-        
-        {requests.map((r) => (
-          <div key={r.id} className="bg-white border border-black/5 rounded-[22px] p-4.5 shadow-sm space-y-3">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full bg-red-50 text-[#FF453A] flex items-center justify-center font-bold text-xs">
-                  {r.userName.charAt(0)}
-                </span>
-                <div>
-                  <h4 className="text-xs font-bold text-[#1D1D1F]">{r.userName}</h4>
-                  <p className="text-[9px] text-zinc-400 font-mono">请假日期：{r.date}</p>
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <span className="text-[10px] font-extrabold text-[#86868B] uppercase tracking-wider block">
+            待初审的请假条 ({pendingLeaves.length})
+          </span>
+
+          {pendingLeaves.length === 0 ? (
+            <div className="text-center py-8 bg-white border border-black/5 rounded-[22px] text-zinc-400 text-xs font-medium">
+              本组目前暂无待初审的请假申请
+            </div>
+          ) : (
+            pendingLeaves.map((r) => (
+              <div key={r.id} className="bg-white border border-black/5 rounded-[22px] p-4.5 shadow-sm space-y-3 animate-scale-up">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full bg-red-50 text-[#FF453A] flex items-center justify-center font-bold text-xs">
+                      {r.userName.charAt(0)}
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-bold text-[#1D1D1F]">{r.userName}</h4>
+                      <p className="text-[9px] text-zinc-400 font-mono">请假日期：{r.date}</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-[#FF9F0A]">
+                    待组长初审
+                  </span>
+                </div>
+
+                <div className="p-3 bg-zinc-50 rounded-2xl text-xs text-zinc-700 leading-relaxed whitespace-pre-wrap font-medium">
+                  事由：{r.reason}
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => handleAudit(r.id, true)}
+                    disabled={auditMutation.isPending}
+                    className="flex-1 py-2.5 bg-[#FF9F0A] text-white font-bold text-xs rounded-xl hover:bg-[#FF9F0A]/95 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    批准同意并呈交终审
+                  </button>
+                  <button
+                    onClick={() => handleAudit(r.id, false)}
+                    disabled={auditMutation.isPending}
+                    className="py-2.5 px-4 bg-red-50 border border-red-200 text-[#FF453A] font-bold text-xs rounded-xl hover:bg-red-100 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    驳回
+                  </button>
                 </div>
               </div>
-              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                r.status === "PENDING" 
-                  ? "bg-amber-50 text-[#FF9F0A]" 
-                  : r.status === "APPROVED" 
-                    ? "bg-green-50 text-[#30D158]" 
-                    : "bg-red-50 text-[#FF453A]"
-              }`}>
-                {r.status === "PENDING" ? "待审核" : r.status === "APPROVED" ? "已批准" : "已驳回"}
-              </span>
-            </div>
+            ))
+          )}
+        </div>
 
-            <div className="p-3 bg-zinc-50 rounded-2xl text-xs text-zinc-700 leading-relaxed whitespace-pre-wrap font-medium">
-              事由：{r.reason}
+        {/* History / Handled Leaves */}
+        {historyLeaves.length > 0 && (
+          <div className="space-y-3">
+            <span className="text-[10px] font-extrabold text-[#86868B] uppercase tracking-wider block">
+              已处理的请假历史记录 ({historyLeaves.length})
+            </span>
+            <div className="space-y-2">
+              {historyLeaves.map((r) => (
+                <div key={r.id} className="bg-white border border-black/5 rounded-[22px] p-4 shadow-sm flex justify-between items-center text-xs">
+                  <div>
+                    <h4 className="font-bold text-[#1D1D1F]">{r.userName}</h4>
+                    <p className="text-[9px] text-zinc-400 font-semibold mt-0.5">请假日期: {r.date} | 事由: {r.reason}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                    r.status === "PENDING_ADMIN" ? "bg-blue-50 text-[#0A84FF]" :
+                    r.status === "APPROVED" ? "bg-green-50 text-[#30D158]" : "bg-red-50 text-[#FF453A]"
+                  }`}>
+                    {r.status === "PENDING_ADMIN" ? "待管理员终审" :
+                     r.status === "APPROVED" ? "终审已批准" : "已驳回"}
+                  </span>
+                </div>
+              ))}
             </div>
-
-            {r.status === "PENDING" && (
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={() => handleAudit(r.id, true)}
-                  className="flex-1 py-2.5 bg-[#FF9F0A] text-white font-bold text-xs rounded-xl hover:bg-[#FF9F0A]/95 transition-all cursor-pointer"
-                >
-                  批准同意
-                </button>
-                <button
-                  onClick={() => handleAudit(r.id, false)}
-                  className="py-2.5 px-4 bg-red-50 border border-red-200 text-[#FF453A] font-bold text-xs rounded-xl hover:bg-red-100 transition-all cursor-pointer"
-                >
-                  驳回
-                </button>
-              </div>
-            )}
           </div>
-        ))}
+        )}
       </div>
     </LeaderLayout>
   );
@@ -540,11 +673,11 @@ export const LeaderAttendance: React.FC = () => {
   const [filter, setFilter] = useState<"ALL" | "NORMAL" | "LATE" | "ABSENT" | "EXCEPTIONAL">("ALL");
 
   // Fetch groups and find leader's group
-  const { data: groups } = useGroups("ACT_2026_01");
-  const leaderGroup = groups?.find(g => g.leaderId === user?.id) || groups?.[0];
+  const { data: groups, isLoading: isLoadingGroups } = useGroups("ACT_2026_01");
+  const leaderGroup = groups?.find(g => g.leaderId === user?.id);
 
   // Fetch attendance records specifically for leader's group
-  const { data: attendanceRecords, isLoading } = useAttendanceRecords({
+  const { data: attendanceRecords = [], isLoading: isLoadingAttendance } = useAttendanceRecords({
     groupId: leaderGroup?.id
   });
 
@@ -567,6 +700,34 @@ export const LeaderAttendance: React.FC = () => {
   const [reason, setReason] = useState("");
 
   const submitMutation = useSubmitCorrectionSuggestion();
+
+  if (isLoadingGroups || isLoadingAttendance) {
+    return (
+      <LeaderLayout title="组员考勤底片与归档">
+        <div className="text-center py-20 text-xs text-zinc-400 font-semibold">
+          正在读取考勤数据...
+        </div>
+      </LeaderLayout>
+    );
+  }
+
+  if (!leaderGroup) {
+    return (
+      <LeaderLayout title="403 无管理权限">
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+          <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-[28px] p-8 max-w-sm shadow-sm space-y-4">
+            <div className="w-16 h-16 bg-red-50 border border-red-100 rounded-full flex items-center justify-center mx-auto text-[#FF453A]">
+              <AlertTriangle size={32} />
+            </div>
+            <h1 className="text-lg font-black text-[#1D1D1F]">403 - 组长权限受限</h1>
+            <p className="text-xs text-[#86868B] leading-relaxed font-semibold">
+              当前活动、GroupLeaderAssignment、GroupMembership 校验未通过：您未被授权负责该会期的任何小组。
+            </p>
+          </div>
+        </div>
+      </LeaderLayout>
+    );
+  }
 
   const filteredRecords = (attendanceRecords || []).filter(r => 
     filter === "ALL" || r.status === filter
@@ -958,7 +1119,7 @@ export const LeaderAttendance: React.FC = () => {
 
         {/* List of attendance records */}
         <div className="space-y-2.5">
-          {isLoading ? (
+          {isLoadingAttendance ? (
             <div className="text-center py-10 text-zinc-400 text-xs font-semibold">
               正在加载组员考勤数据...
             </div>
@@ -1263,8 +1424,23 @@ export const LeaderTransferSuggestions: React.FC = () => {
 // 10. LeaderAnnouncements (组长公告消息)
 // ==========================================
 export const LeaderAnnouncements: React.FC = () => {
-  const { announcements } = useEventStore();
-  const leaderAnnouncements = announcements.filter(a => a.targetRole === "ALL" || a.targetRole === "LEADER");
+  const { user } = useAuthStore();
+  const { data: announcements = [], isLoading } = useAnnouncements();
+  const confirmMutation = useConfirmAnnouncement();
+
+  if (isLoading) {
+    return (
+      <LeaderLayout title="组长及展务通知公告">
+        <div className="text-center py-20 text-xs text-zinc-400 font-semibold animate-pulse">
+          正在读取通知公告...
+        </div>
+      </LeaderLayout>
+    );
+  }
+
+  const leaderAnnouncements = announcements.filter(
+    (a) => a.targetRole === "ALL" || a.targetRole === "LEADER"
+  );
 
   return (
     <LeaderLayout title="组长及展务通知公告">
@@ -1275,15 +1451,31 @@ export const LeaderAnnouncements: React.FC = () => {
             暂无面向组长层级的公告
           </div>
         ) : (
-          leaderAnnouncements.map((a) => (
-            <div key={a.id} className="bg-white border border-black/5 rounded-[22px] p-4.5 shadow-sm space-y-2">
-              <div className="flex justify-between items-center">
-                <h4 className="text-xs font-bold text-[#1D1D1F]">{a.title}</h4>
-                <span className="text-[9px] text-zinc-400 font-mono">{a.createdAt}</span>
+          leaderAnnouncements.map((a) => {
+            const isConfirmed = a.confirmedUserIds?.includes(user?.id || "");
+            return (
+              <div key={a.id} className="bg-white border border-black/5 rounded-[22px] p-4.5 shadow-sm space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-[#1D1D1F]">{a.title}</h4>
+                  <span className="text-[9px] text-zinc-400 font-mono">{a.createdAt || a.publishDate}</span>
+                </div>
+                <p className="text-[11px] text-zinc-600 font-medium leading-relaxed">{a.content}</p>
+                <div className="flex justify-between items-center pt-2 border-t border-zinc-50">
+                  <span className="text-[9px] text-zinc-400 font-semibold">
+                    确认状态：{isConfirmed ? "✅ 已签署确认" : "⏳ 待签署确认"}
+                  </span>
+                  {!isConfirmed && (
+                    <button
+                      onClick={() => confirmMutation.mutate({ announcementId: a.id, userId: user?.id || "" })}
+                      className="px-3 py-1.5 bg-[#0A84FF] text-white text-[10px] font-bold rounded-lg hover:bg-[#0A84FF]/90 transition-all cursor-pointer"
+                    >
+                      确认并知悉
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className="text-[11px] text-zinc-600 font-medium leading-relaxed">{a.content}</p>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </LeaderLayout>

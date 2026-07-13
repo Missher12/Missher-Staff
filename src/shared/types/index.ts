@@ -127,7 +127,9 @@ export interface AttendanceRecord {
   userName: string;
   userPhone: string;
   groupName: string;
+  groupId?: string;
   positionName: string;
+  positionId?: string;
   activityId: string;
   date: string; // "2026-07-11"
   checkInTime?: string; // "08:23:45"

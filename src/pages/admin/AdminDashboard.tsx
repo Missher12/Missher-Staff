@@ -4,10 +4,24 @@ import { useEventStore } from "../../app/stores/eventStore";
 import { AdminLayout } from "../../app/layouts/AdminLayout";
 import { BentoGrid, BentoCard, MetricCard, StatusBadge } from "../../shared/ui";
 import { Users, ClipboardCheck, Calendar, Activity, ArrowRight, UserPlus, FileCheck2, UserCheck } from "lucide-react";
+import { useApplications, useAttendanceRecords } from "../../shared/hooks/useQueries";
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { applications, attendanceRecords, interviewSlots } = useEventStore();
+  
+  // Fetch applications & attendance records via API hooks
+  const { data: applications = [], isLoading: isLoadingApps } = useApplications({ activityId: "ACT_2026_01" });
+  const { data: attendanceRecords = [], isLoading: isLoadingAttendance } = useAttendanceRecords({ activityId: "ACT_2026_01" });
+
+  if (isLoadingApps || isLoadingAttendance) {
+    return (
+      <AdminLayout>
+        <div className="text-center py-20 text-xs text-zinc-400 font-semibold animate-pulse">
+          正在加载管理大盘数据与考勤指标...
+        </div>
+      </AdminLayout>
+    );
+  }
 
   // 1. 统计数据
   const totalAppsCount = applications.length;

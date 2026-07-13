@@ -35,6 +35,18 @@ export function useAttendanceCorrections(attendanceId?: string) {
   });
 }
 
+export function useSubmitAttendanceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, data }: { userId: string; data: any }) =>
+      apiClient.submitAttendance(userId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendanceRecords"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    },
+  });
+}
+
 export function useCorrectAttendance() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -126,7 +138,16 @@ export function useGroups(activityId?: string) {
 export function useApplications(filters: any) {
   return useQuery({
     queryKey: ["applications", filters],
-    queryFn: () => apiClient.getApplications(filters),
+    queryFn: async () => {
+      const res = await apiClient.getApplications(filters);
+      if (Array.isArray(res)) {
+        return res;
+      }
+      if (res && Array.isArray(res.items)) {
+        return res.items;
+      }
+      return [];
+    },
   });
 }
 

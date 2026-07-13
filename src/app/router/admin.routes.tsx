@@ -46,7 +46,7 @@ export const adminRoutes: RouteConfig[] = [
     )
   },
   { 
-    path: "/admin/applications/:id", 
+    path: "/admin/applications/:applicationId", 
     element: (
       <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
         <ApplicationDetail />

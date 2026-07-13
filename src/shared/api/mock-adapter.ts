@@ -96,6 +96,91 @@ class MockDatabase {
       }
     ];
   }
+
+  public reset() {
+    this.users = JSON.parse(JSON.stringify(mockUsers));
+    this.activities = JSON.parse(JSON.stringify(mockActivities));
+    this.applications = JSON.parse(JSON.stringify(mockApplications));
+    this.interviewSlots = JSON.parse(JSON.stringify(mockInterviewSlots));
+    this.groups = JSON.parse(JSON.stringify(mockGroups));
+    this.attendanceRecords = JSON.parse(JSON.stringify(mockAttendanceRecords));
+    this.announcements = JSON.parse(JSON.stringify(mockAnnouncements));
+    this.leaveRequests = [
+      {
+        id: "LEAVE_01",
+        userId: "U_STAFF_1",
+        userName: "李小华",
+        userPhone: "13800000001",
+        activityId: "ACT_2026_01",
+        date: "2026-07-12",
+        type: "PERSONAL",
+        reason: "学校临时安排期末答辩，无法参加周日全天排班，特此请假。",
+        status: "PENDING_LEADER",
+        submittedAt: "2026-07-10 12:00:00"
+      }
+    ];
+    this.correctionSuggestions = [];
+    this.inviteLinks = [
+      {
+        id: "INV_01",
+        activityId: "ACT_2026_01",
+        groupId: "GRP_01",
+        creatorId: "U_LEADER",
+        code: "SUMMER_STAGE_LEADER_998",
+        maxUses: 10,
+        usedCount: 1,
+        expireAt: "2026-07-15 00:00:00",
+        createdAt: "2026-07-05 10:00:00"
+      }
+    ];
+    this.attendanceCorrections = [];
+    this.interviewTokens = [];
+    this.leaderAssignments = [
+      {
+        id: "ASG_01",
+        activityId: "ACT_2026_01",
+        groupId: "GRP_01", // 舞台控场组
+        userId: "U_LEADER",
+        leaderType: "PRIMARY",
+        permissions: [
+          {
+            id: "PERM_01",
+            userId: "U_LEADER",
+            activityId: "ACT_2026_01",
+            groupId: "GRP_01",
+            canScanInterview: true,
+            canReviewInterview: true,
+            canApproveLeave: true,
+            canSuggestCorrection: true,
+            canSuggestTransfer: true
+          }
+        ]
+      }
+    ];
+    this.notifications = [
+      {
+        id: "NOTIF_01",
+        userId: "U_STAFF_1",
+        title: "面试通过通知",
+        content: "恭喜您通过盛夏次元动漫嘉年华面试！您已被录用并分配至【舞台控场组-舞台控场岗】，组长：陈大伟。",
+        isRead: false,
+        createdAt: "2026-07-10 18:30:00"
+      }
+    ];
+    this.auditLogs = [
+      {
+        id: "LOG_01",
+        operatorId: "U_ADMIN",
+        operatorName: "张晓明",
+        operatorRole: "ACTIVITY_ADMIN",
+        action: "APPROVE_APPLICATION",
+        targetType: "Application",
+        targetId: "APP_01",
+        description: "审核通过了李小华的报名材料并安排面试。",
+        createdAt: "2026-07-03 10:15:00"
+      }
+    ];
+  }
 }
 
 export const db = new MockDatabase();
@@ -526,6 +611,31 @@ export const mockApiAdapter = {
           group.memberIds.push(user.id);
         }
       }
+
+      // Automatically register empty AttendanceRecords for the chosen dates
+      if (assignedDates && assignedDates.length > 0) {
+        const group = db.groups.find(g => g.id === groupId);
+        const positionName = positionId === "POS_STAGE" ? "舞台控场岗" : positionId === "POS_TICKET" ? "门禁检票岗" : "一般岗位";
+        assignedDates.forEach((date, idx) => {
+          const exists = db.attendanceRecords.some(r => r.userId === user.id && r.date === date);
+          if (!exists) {
+            db.attendanceRecords.push({
+              id: `ATT_GEN_${Date.now()}_${idx}`,
+              userId: user.id,
+              userName: user.name,
+              userPhone: user.phone,
+              groupName: group?.name || "未知小组",
+              groupId: groupId || "GRP_DEFAULT",
+              positionName,
+              positionId: positionId || "POS_DEFAULT",
+              activityId: app.activityId,
+              date,
+              status: "ABSENT",
+              riskLevel: "LOW"
+            });
+          }
+        });
+      }
     } else if (status === "REJECTED" && user) {
       // Revert if rejected
       user.role = "APPLICANT";
@@ -597,9 +707,10 @@ export const mockApiAdapter = {
     if (!user) throw new NotFoundError("用户不存在");
 
     // Fetch group/position info dynamically
-    const group = db.groups.find(g => g.memberIds.includes(userId)) || { name: "通用小组" };
+    const group = db.groups.find(g => g.memberIds.includes(userId)) || { id: "GRP_DEFAULT", name: "通用小组" };
     const app = db.applications.find(a => a.userId === userId && a.activityId === data.activityId);
     const positionName = (app?.targetPositions?.[0]) || "一般岗位";
+    const positionId = positionName === "舞台控场岗" ? "POS_STAGE" : positionName === "门禁检票岗" ? "POS_TICKET" : "POS_DEFAULT";
 
     let record = db.attendanceRecords.find(r => r.userId === userId && r.date === data.date && r.activityId === data.activityId);
 
@@ -623,7 +734,9 @@ export const mockApiAdapter = {
         userName: user.name,
         userPhone: user.phone,
         groupName: group.name,
+        groupId: (group as any).id,
         positionName,
+        positionId,
         activityId: data.activityId,
         date: data.date,
         status: status,
