@@ -9,7 +9,7 @@ import { ArrowLeft, CheckCircle, AlertCircle, RefreshCw, Send } from "lucide-rea
 export const AttendanceCheck: React.FC = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const { attendanceRecords, submitAttendance } = useEventStore();
+  const { attendanceRecords, submitAttendance, showToast } = useEventStore();
 
   // 1. 判断是签到还是签退 (假定今日为 2026-07-11)
   const todayRecord = attendanceRecords.find(r => r.userId === user?.id && r.date === "2026-07-11");
@@ -85,7 +85,7 @@ export const AttendanceCheck: React.FC = () => {
       const res = await submitAttendance(recordPayload);
       setPunchResult(res);
     } catch (err) {
-      alert("考勤数据上传异常，请重新提交");
+      showToast("考勤数据上传异常，请重新提交", "error");
     } finally {
       setIsSubmitting(false);
     }

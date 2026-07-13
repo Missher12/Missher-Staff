@@ -12,7 +12,7 @@ import { ApplicationStatus, InterviewStatus } from "../../shared/types";
 export const ApplicationDetail: React.FC = () => {
   const { applicationId } = useParams<{ applicationId: string }>();
   const navigate = useNavigate();
-  const { applications, auditApplication, evaluateInterview, employStaff } = useEventStore();
+  const { applications, auditApplication, evaluateInterview, employStaff, showToast } = useEventStore();
 
   const app = applications.find((a) => a.id === applicationId);
 
@@ -43,7 +43,7 @@ export const ApplicationDetail: React.FC = () => {
       commentInput || "简历资质初审合格。欢迎进入面试预约环节，已自动触发邀请短信通知。"
     );
     setCommentInput("");
-    alert("初审批准通过！系统已释放该用户的面试预约资格。");
+    showToast("初审批准通过！系统已释放该用户的面试预约资格。", "success");
   };
 
   // 2. 驳回/驳退
@@ -55,13 +55,13 @@ export const ApplicationDetail: React.FC = () => {
       commentInput || "十分抱歉，您填报的岗位出勤日期或相关经历与会场要求冲突，暂不予批准录用。"
     );
     setCommentInput("");
-    alert("该岗位申请件已标记驳回归档。");
+    showToast("该岗位申请件已标记驳回归档。", "info");
   };
 
   // 3. 终审录取
   const handleHireStaff = (isEmployed: boolean) => {
     employStaff(app.id, isEmployed, selectedGroup, selectedPosition);
-    alert(isEmployed ? `终审合格！已录取该志愿并划分岗位：${selectedGroup} - ${selectedPosition}` : "终审操作成功");
+    showToast(isEmployed ? `终审合格！已录取该志愿并划分岗位：${selectedGroup} - ${selectedPosition}` : "终审操作成功", "success");
   };
 
   return (

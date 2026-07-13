@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { LeaderLayout } from "../../app/layouts/LeaderLayout";
 import { useAuthStore } from "../../app/stores/authStore";
 import { useEventStore } from "../../app/stores/eventStore";
@@ -7,11 +7,14 @@ import {
   useGroups,
   useAttendanceRecords,
   useSubmitCorrectionSuggestion,
-  useCorrectionSuggestions
+  useCorrectionSuggestions,
+  useAttendanceById,
+  useAttendanceCorrections,
+  usePeople
 } from "../../shared/hooks/useQueries";
 import { 
   Users, MapPin, Scan, CheckCircle, Clock, 
-  Send, AlertTriangle, Play, RefreshCw, Star, MessageSquare 
+  Send, AlertTriangle, Play, RefreshCw, Star, MessageSquare, ArrowLeft, Smartphone, ShieldCheck
 } from "lucide-react";
 
 // ==========================================
@@ -129,46 +132,68 @@ export const LeaderDashboard: React.FC = () => {
 // 2. LeaderMembers (组员详情及考勤卡片)
 // ==========================================
 export const LeaderMembers: React.FC = () => {
-  const members = [
-    { id: "U_01", name: "林可儿", phone: "13800000001", position: "舞台控场岗", insurance: "太平洋已保", attendanceRate: "100%" },
-    { id: "U_02", name: "张小豪", phone: "13912345678", position: "后勤协调岗", insurance: "太平洋已保", attendanceRate: "100%" },
-    { id: "U_03", name: "苏苏", phone: "13111110000", position: "秩序维持岗", insurance: "太平洋已保", attendanceRate: "50%" }
-  ];
+  const { user } = useAuthStore();
+  const { data: groups } = useGroups("ACT_2026_01");
+  const { data: people = [], isLoading: isLoadingPeople } = usePeople();
+
+  const leaderGroup = groups?.find(g => g.leaderId === user?.id) || groups?.[0];
+
+  // Map member IDs to user profiles
+  const members = (people || []).filter(p => leaderGroup?.memberIds.includes(p.id)).map(p => {
+    return {
+      id: p.id,
+      name: p.name,
+      phone: p.phone,
+      position: p.role === "LEADER" ? "小组长" : "本组 STAFF",
+      insurance: "太平洋商业险已参保",
+      attendanceRate: p.id === "U_03" ? "50%" : "100%" // Mock dynamic metrics
+    };
+  });
 
   return (
     <LeaderLayout title="本小组组员通讯录">
       <div className="space-y-3">
-        {members.map((m) => (
-          <div key={m.id} className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-[22px] p-4.5 shadow-sm space-y-3">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-sm text-[#0A84FF]">
-                  {m.name.charAt(0)}
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[#1D1D1F]">{m.name}</h4>
-                  <p className="text-[10px] text-zinc-400 font-semibold">{m.position}</p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <span className="text-[10px] text-zinc-400 block font-mono">首期出勤率</span>
-                <span className="text-xs font-black text-[#30D158] font-mono">{m.attendanceRate}</span>
-              </div>
-            </div>
-
-            <div className="h-px bg-zinc-100" />
-
-            <div className="flex justify-between text-[11px] font-semibold">
-              <span className="text-zinc-500">实名电话</span>
-              <a href={`tel:${m.phone}`} className="text-[#0A84FF] font-mono">{m.phone}</a>
-            </div>
-            <div className="flex justify-between text-[11px] font-semibold">
-              <span className="text-zinc-500">商业意外险</span>
-              <span className="text-[#30D158]">{m.insurance}</span>
-            </div>
+        {isLoadingPeople ? (
+          <div className="text-center py-10 text-xs text-zinc-400 font-semibold">
+            正在读取小组成员名单...
           </div>
-        ))}
+        ) : members.length === 0 ? (
+          <div className="text-center py-10 bg-white border border-black/5 rounded-[22px] text-xs text-zinc-400 font-semibold">
+            本小组暂未分配组员。可以通过分享本组邀请链接招募组员。
+          </div>
+        ) : (
+          members.map((m) => (
+            <div key={m.id} className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-[22px] p-4.5 shadow-sm space-y-3">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-sm text-[#0A84FF]">
+                    {m.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[#1D1D1F]">{m.name}</h4>
+                    <p className="text-[10px] text-zinc-400 font-semibold">{m.position}</p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-[10px] text-zinc-400 block font-mono">首期出勤率</span>
+                  <span className="text-xs font-black text-[#30D158] font-mono">{m.attendanceRate}</span>
+                </div>
+              </div>
+
+              <div className="h-px bg-zinc-100" />
+
+              <div className="flex justify-between text-[11px] font-semibold">
+                <span className="text-zinc-500">实名电话</span>
+                <a href={`tel:${m.phone}`} className="text-[#0A84FF] font-mono">{m.phone}</a>
+              </div>
+              <div className="flex justify-between text-[11px] font-semibold">
+                <span className="text-zinc-500">商业意外险</span>
+                <span className="text-[#30D158]">{m.insurance}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </LeaderLayout>
   );
@@ -510,6 +535,8 @@ export const LeaderCorrectionSuggestions: React.FC = () => {
 export const LeaderAttendance: React.FC = () => {
   const { user } = useAuthStore();
   const { showToast } = useEventStore();
+  const { attendanceId } = useParams<{ attendanceId: string }>();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<"ALL" | "NORMAL" | "LATE" | "ABSENT" | "EXCEPTIONAL">("ALL");
 
   // Fetch groups and find leader's group
@@ -520,6 +547,10 @@ export const LeaderAttendance: React.FC = () => {
   const { data: attendanceRecords, isLoading } = useAttendanceRecords({
     groupId: leaderGroup?.id
   });
+
+  // Fetch single record if attendanceId is present
+  const { data: record, isLoading: isLoadingRecord } = useAttendanceById(attendanceId || "");
+  const { data: recordCorrections = [] } = useAttendanceCorrections(attendanceId || "");
 
   // Fetch suggestions submitted by this leader to show status on card
   const { data: suggestions } = useCorrectionSuggestions({
@@ -541,10 +572,10 @@ export const LeaderAttendance: React.FC = () => {
     filter === "ALL" || r.status === filter
   );
 
-  const handleOpenDrawer = (record: any) => {
-    setSelectedRecord(record);
+  const handleOpenDrawer = (rec: any) => {
+    setSelectedRecord(rec);
     setSuggestedStatus("NORMAL");
-    setSuggestedTime(record.checkInTime || "09:00");
+    setSuggestedTime(rec.checkInTime || "09:00");
     setSuggestedType("CHECK_IN");
     setReason("");
     setIsDrawerOpen(true);
@@ -561,10 +592,11 @@ export const LeaderAttendance: React.FC = () => {
       showToast("请填写申请修正的真实原因！", "error");
       return;
     }
-    if (!selectedRecord) return;
+    const targetRecord = selectedRecord || record;
+    if (!targetRecord) return;
 
     submitMutation.mutate({
-      attendanceId: selectedRecord.id,
+      attendanceId: targetRecord.id,
       leaderId: user?.id || "U_LEADER",
       update: {
         suggestedStatus,
@@ -582,6 +614,316 @@ export const LeaderAttendance: React.FC = () => {
       }
     });
   };
+
+  // 1. Render single record details if attendanceId is present
+  if (attendanceId) {
+    if (isLoadingRecord) {
+      return (
+        <LeaderLayout title="考勤底片详情">
+          <div className="p-10 text-center text-zinc-400 font-semibold text-xs">
+            正在读取考勤打卡原始底片及审计底账...
+          </div>
+        </LeaderLayout>
+      );
+    }
+
+    if (!record) {
+      return (
+        <LeaderLayout title="考勤底片详情">
+          <div className="p-10 text-center text-zinc-400 font-semibold text-xs space-y-4">
+            <p>未找到该条考勤记录</p>
+            <button 
+              onClick={() => navigate("/leader/attendance")}
+              className="px-4 py-2 bg-zinc-100 rounded-xl text-xs font-bold"
+            >
+              返回列表
+            </button>
+          </div>
+        </LeaderLayout>
+      );
+    }
+
+    // Security: Leader can only view records of members in their group
+    const isMemberOfGroup = leaderGroup && record.groupId === leaderGroup.id;
+    if (!isMemberOfGroup) {
+      return (
+        <LeaderLayout title="403 权限越界限制">
+          <div className="p-10 text-center text-red-500 font-bold text-xs space-y-3">
+            <AlertTriangle className="mx-auto" size={28} />
+            <p>403 - 权限越界限制</p>
+            <p className="text-zinc-500 font-semibold">
+              根据沙盒数据安全策略，您仅被授权查看和修正您负责的小组【{leaderGroup?.name || "未知小组"}】的成员底片，无权越权访问其他组员。
+            </p>
+            <button 
+              onClick={() => navigate("/leader/attendance")}
+              className="mt-2 px-4 py-2 bg-zinc-100 rounded-xl text-zinc-600 font-bold"
+            >
+              返回我的小组考勤
+            </button>
+          </div>
+        </LeaderLayout>
+      );
+    }
+
+    const pendingSug = (suggestions || []).find(s => s.attendanceId === record.id && s.status === "PENDING");
+
+    return (
+      <LeaderLayout title="考勤底片详情">
+        <div className="space-y-6">
+          <div className="flex items-center gap-3 border-b border-black/5 pb-4">
+            <button 
+              onClick={() => navigate("/leader/attendance")}
+              className="p-1.5 hover:bg-slate-100 rounded-full text-zinc-600 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <div>
+              <h2 className="text-lg font-extrabold text-[#1D1D1F]">考勤底片细节与修正建议</h2>
+              <p className="text-[10px] text-zinc-400 font-medium">考勤ID: {record.id}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-50 text-[#0A84FF] rounded-full flex items-center justify-center font-black text-sm">
+                  {record.userName.substring(0, 1)}
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-zinc-800">{record.userName}</h3>
+                  <span className="text-[10px] text-zinc-400 block font-mono mt-0.5">{record.positionName}</span>
+                </div>
+              </div>
+
+              <div className="divide-y divide-zinc-50 pt-2 text-xs font-semibold">
+                <div className="py-2.5 flex justify-between">
+                  <span className="text-zinc-400">所属小组</span>
+                  <span className="text-zinc-800">{record.groupName}</span>
+                </div>
+                <div className="py-2.5 flex justify-between">
+                  <span className="text-zinc-400">排班日期</span>
+                  <span className="text-zinc-800 font-mono">{record.date}</span>
+                </div>
+                <div className="py-2.5 flex justify-between">
+                  <span className="text-zinc-400">当前考勤状态</span>
+                  <span className="inline-block scale-90 origin-right">
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                      record.status === "NORMAL" 
+                        ? "bg-green-50 text-[#30D158]" 
+                        : record.status === "LATE"
+                          ? "bg-amber-50 text-[#FF9F0A]"
+                          : record.status === "EXCEPTIONAL"
+                            ? "bg-purple-50 text-[#BF5AF2]"
+                            : "bg-red-50 text-[#FF453A]"
+                    }`}>
+                      {record.status === "NORMAL" ? "正常" : record.status === "LATE" ? "迟到" : record.status === "EXCEPTIONAL" ? "异常" : "缺勤"}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Timings and Selfies */}
+            <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+              <h4 className="text-xs font-black text-zinc-800 flex items-center gap-1.5 border-b border-zinc-50 pb-2">
+                <Clock size={14} className="text-[#0A84FF]" /> 签到/签退底片明细
+              </h4>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-slate-50 border border-black/5 rounded-2xl text-xs font-medium space-y-2">
+                  <span className="text-[9px] text-zinc-400 block uppercase">上午签到</span>
+                  <p className="text-xs font-black text-zinc-800">{record.checkInTime || "未签到"}</p>
+                  <p className="text-[10px] text-zinc-400">定位偏差: {record.checkInDistance !== undefined ? `${record.checkInDistance}m` : "无"}</p>
+                  {record.checkInPhoto && (
+                    <div className="mt-2 rounded-xl overflow-hidden border border-black/5">
+                      <img src={record.checkInPhoto} alt="签到照片" className="w-full h-24 object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-black/5 rounded-2xl text-xs font-medium space-y-2">
+                  <span className="text-[9px] text-zinc-400 block uppercase">下午签退</span>
+                  <p className="text-xs font-black text-zinc-800">{record.checkOutTime || "未签退"}</p>
+                  <p className="text-[10px] text-zinc-400">定位偏差: {record.checkOutDistance !== undefined ? `${record.checkOutDistance}m` : "无"}</p>
+                  {record.checkOutPhoto && (
+                    <div className="mt-2 rounded-xl overflow-hidden border border-black/5">
+                      <img src={record.checkOutPhoto} alt="签退照片" className="w-full h-24 object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* GPS Metrics & Correction trigger */}
+            <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+              <h4 className="text-xs font-black text-zinc-800 flex items-center gap-1.5 border-b border-zinc-50 pb-2">
+                <MapPin size={14} className="text-[#0A84FF]" /> 硬件及GPS环境指纹
+              </h4>
+
+              <div className="text-xs font-semibold text-zinc-500 space-y-2">
+                <div className="flex justify-between">
+                  <span>GPS 原始经纬度</span>
+                  <span className="text-zinc-800 font-mono text-[10px]">30.1234° N, 120.5678° E</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>物理设备指纹</span>
+                  <span className="text-zinc-800 text-[10px]">Safari Mobile, Apple Device</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>网络模拟 IP</span>
+                  <span className="text-zinc-800 font-mono text-[10px]">192.168.4.120</span>
+                </div>
+              </div>
+
+              {record.riskReason && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-[10px] text-red-600 font-bold">
+                  ⚠️ 异常警报: {record.riskReason}
+                </div>
+              )}
+
+              <div className="pt-2">
+                {pendingSug ? (
+                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-[#FF9F0A] font-bold text-center animate-pulse">
+                    ⏳ 补卡申请修正中，请等待管理员终审...
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleOpenDrawer(record)}
+                    className="w-full py-3 bg-[#FF9F0A]/10 hover:bg-[#FF9F0A]/20 text-[#FF9F0A] font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                  >
+                    💡 提交补卡或修正建议
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Audit Timeline */}
+          <div className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+            <h4 className="text-xs font-black text-zinc-800 flex items-center gap-1.5">
+              <ShieldCheck size={14} className="text-[#30D158]" /> 修正审计日志记录
+            </h4>
+
+            {recordCorrections.length === 0 ? (
+              <p className="text-xs text-zinc-400 font-semibold text-center py-4">
+                当前数据为直接自排产生的原始底片数据，无人工修改历史。
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {recordCorrections.map((corr: any, idx: number) => (
+                  <div key={idx} className="bg-slate-50 border border-zinc-100 p-3.5 rounded-2xl text-xs space-y-1">
+                    <div className="flex justify-between font-bold">
+                      <span className="text-zinc-800">经办修正人: {corr.operatorName}</span>
+                      <span className="text-zinc-400 font-mono">{corr.createdAt}</span>
+                    </div>
+                    <p className="text-zinc-500 font-medium">
+                      <strong>更正事由:</strong> {corr.reason}
+                    </p>
+                    <div className="text-[10px] text-[#0A84FF] font-bold">
+                      出勤判定状态更正为：{corr.after.status}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Suggestion Form Modal inside detail */}
+        {isDrawerOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+            <div className="bg-white w-full sm:max-w-md rounded-t-[30px] sm:rounded-[30px] p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-slide-up">
+              <div className="flex justify-between items-center border-b border-black/5 pb-3">
+                <div>
+                  <h3 className="text-base font-black text-zinc-950">申请修正考勤记录</h3>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">组员: {record.userName}</p>
+                </div>
+                <button 
+                  onClick={handleCloseDrawer}
+                  className="text-zinc-400 hover:text-zinc-600 text-lg font-bold p-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitSuggestion} className="space-y-4 text-xs font-semibold">
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1.5">修改目标打卡</label>
+                  <div className="flex gap-2">
+                    {(["CHECK_IN", "CHECK_OUT"] as const).map((t) => (
+                      <button
+                        type="button"
+                        key={t}
+                        onClick={() => setSuggestedType(t)}
+                        className={`flex-1 py-2 rounded-xl border text-center font-bold transition-all ${
+                          suggestedType === t
+                            ? "border-[#0A84FF] bg-[#0A84FF]/10 text-[#0A84FF]"
+                            : "border-zinc-200 text-zinc-500"
+                        }`}
+                      >
+                        {t === "CHECK_IN" ? "签到打卡" : "签退打卡"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1.5">建议更正状态</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["NORMAL", "LATE", "ABSENT"] as const).map((s) => (
+                      <button
+                        type="button"
+                        key={s}
+                        onClick={() => setSuggestedStatus(s)}
+                        className={`py-2 rounded-xl border text-center font-bold transition-all ${
+                          suggestedStatus === s
+                            ? "border-[#30D158] bg-[#30D158]/10 text-[#30D158]"
+                            : "border-zinc-200 text-zinc-500"
+                        }`}
+                      >
+                        {s === "NORMAL" ? "正常" : s === "LATE" ? "迟到" : "缺勤"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1.5">建议打卡时间</label>
+                  <input
+                    type="text"
+                    value={suggestedTime}
+                    onChange={(e) => setSuggestedTime(e.target.value)}
+                    placeholder="e.g. 09:00 或 18:30"
+                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-mono text-zinc-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-zinc-400 uppercase tracking-wide block mb-1.5">
+                    补卡原因 <span className="text-red-500 font-bold">*必填</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="请输入真实原因..."
+                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-medium leading-relaxed"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 bg-[#FF9F0A] text-white font-bold text-xs rounded-xl hover:bg-[#FF9F0A]/90 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  确认并提交补卡建议
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </LeaderLayout>
+    );
+  }
 
   return (
     <LeaderLayout title="组员考勤底片与归档">

@@ -3,6 +3,12 @@ import { StaffLayout } from "../../app/layouts/StaffLayout";
 import { useAuthStore } from "../../app/stores/authStore";
 import { useEventStore } from "../../app/stores/eventStore";
 import { 
+  useLeaveRequests,
+  useSubmitLeaveRequest,
+  useAnnouncements,
+  useConfirmAnnouncement
+} from "../../shared/hooks/useQueries";
+import { 
   QrCode, Calendar, Users, FileSpreadsheet, RefreshCw, 
   Clock, MapPin, Send, AlertTriangle, CheckCircle, ShieldCheck, Mail
 } from "lucide-react";
@@ -151,32 +157,44 @@ export const StaffGroup: React.FC = () => {
 // 4. StaffLeave (请假申请与记录)
 // ==========================================
 export const StaffLeave: React.FC = () => {
+  const { user } = useAuthStore();
+  const { showToast } = useEventStore();
   const [reason, setReason] = useState("");
   const [date, setDate] = useState("2026-07-12");
-  const [success, setSuccess] = useState(false);
+
+  const { data: myLeaves = [], isLoading } = useLeaveRequests({ userId: user?.id });
+  const submitMutation = useSubmitLeaveRequest();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reason) {
-      alert("请填写请假原因");
+    if (!reason.trim()) {
+      showToast("请填写请假原因！", "error");
       return;
     }
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-      setReason("");
-    }, 4000);
+    if (!user) return;
+
+    submitMutation.mutate({
+      userId: user.id,
+      leave: {
+        date,
+        reason,
+        status: "PENDING_LEADER",
+        userName: user.name
+      }
+    }, {
+      onSuccess: () => {
+        showToast("请假申请已提交，已实时推送给您的组长审核！", "success");
+        setReason("");
+      },
+      onError: (err: any) => {
+        showToast(`提交失败: ${err.message}`, "error");
+      }
+    });
   };
 
   return (
     <StaffLayout title="向组长申请请假">
       <div className="space-y-4">
-        {success && (
-          <div className="p-3.5 bg-green-50 border border-green-200 rounded-2xl text-xs text-[#30D158] font-bold flex items-center gap-2">
-            <CheckCircle size={16} /> 请假单提交成功！已流转至组长陈大伟，审批结果将实时短信通知。
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">请假出勤日期</label>
@@ -188,6 +206,7 @@ export const StaffLeave: React.FC = () => {
               <option value="2026-07-11">2026-07-11 (已过期)</option>
               <option value="2026-07-12">2026-07-12 (今日出勤)</option>
               <option value="2026-07-13">2026-07-13 (明日排班)</option>
+              <option value="2026-07-14">2026-07-14 (后续排班)</option>
             </select>
           </div>
 
@@ -204,21 +223,42 @@ export const StaffLeave: React.FC = () => {
 
           <button 
             type="submit" 
+            disabled={submitMutation.isPending}
             className="w-full py-3.5 bg-[#FF453A] text-white font-bold text-xs rounded-full hover:bg-[#FF453A]/90 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
-            <Send size={14} /> 提交请假单
+            <Send size={14} /> {submitMutation.isPending ? "正在提交..." : "提交请假单"}
           </button>
         </form>
 
         <div className="space-y-2">
           <span className="text-[10px] font-extrabold text-[#86868B] tracking-wide uppercase block">历史请假记录</span>
-          <div className="p-4 bg-white border border-black/5 rounded-2xl flex justify-between items-center text-xs">
-            <div className="space-y-0.5">
-              <p className="font-bold text-[#1D1D1F]">2026-07-12 请假单</p>
-              <p className="text-[10px] text-zinc-400">事由：身体不适需就医</p>
+          
+          {isLoading ? (
+            <div className="text-center py-6 text-xs text-[#86868B]">加载请假记录中...</div>
+          ) : myLeaves.length === 0 ? (
+            <div className="text-center py-6 bg-white border border-black/5 rounded-2xl text-xs text-[#86868B] font-semibold">
+              暂无请假申请历史
             </div>
-            <span className="px-2 py-0.5 bg-amber-50 rounded-full text-[9px] font-bold text-[#FF9F0A]">待组长初审</span>
-          </div>
+          ) : (
+            myLeaves.map((l: any) => (
+              <div key={l.id} className="p-4 bg-white border border-black/5 rounded-2xl flex justify-between items-center text-xs shadow-sm">
+                <div className="space-y-0.5">
+                  <p className="font-bold text-[#1D1D1F]">{l.date} 请假单</p>
+                  <p className="text-[10px] text-zinc-400">事由：{l.reason}</p>
+                  {l.comment && <p className="text-[10px] text-zinc-500 font-semibold bg-zinc-50 p-1.5 rounded mt-1">审批意见: {l.comment}</p>}
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                  l.status === "PENDING_LEADER" ? "bg-amber-50 text-[#FF9F0A]" :
+                  l.status === "PENDING_ADMIN" ? "bg-blue-50 text-[#0A84FF]" :
+                  l.status === "APPROVED" ? "bg-green-50 text-[#30D158]" : "bg-red-50 text-[#FF453A]"
+                }`}>
+                  {l.status === "PENDING_LEADER" ? "待组长初审" :
+                   l.status === "PENDING_ADMIN" ? "待管理员终审" :
+                   l.status === "APPROVED" ? "已批准" : "已驳回"}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </StaffLayout>

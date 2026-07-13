@@ -5,26 +5,37 @@ import { useEventStore } from "../../app/stores/eventStore";
 import { StaffLayout } from "../../app/layouts/StaffLayout";
 import { StatusBadge, SensitiveText } from "../../shared/ui";
 import { MapPin, Phone, Bell, QrCode, ArrowRight, CheckSquare, Clock, Users } from "lucide-react";
-import { mockUsers } from "../../shared/mocks/data";
+import { 
+  useGroups, 
+  usePeople, 
+  useAttendanceRecords, 
+  useAnnouncements 
+} from "../../shared/hooks/useQueries";
 
 export const StaffDashboard: React.FC = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const { groups, attendanceRecords, announcements } = useEventStore();
+
+  // Queries
+  const { data: groups = [] } = useGroups("ACT_2026_01");
+  const { data: people = [] } = usePeople();
+  const { data: attendanceRecords = [] } = useAttendanceRecords({ userId: user?.id });
+  const { data: announcements = [] } = useAnnouncements();
 
   // 1. 查找当前用户的小组
   const myGroup = groups.find(g => g.memberIds.includes(user?.id || ""));
   
   // 2. 查找同组组员
   const groupMembers = myGroup 
-    ? mockUsers.filter(u => myGroup.memberIds.includes(u.id) && u.id !== user?.id) 
+    ? (people || []).filter(p => myGroup.memberIds.includes(p.id) && p.id !== user?.id) 
     : [];
 
-  // 3. 查找今日打卡记录 (假定今日为 2026-07-11)
-  const todayRecord = attendanceRecords.find(r => r.userId === user?.id && r.date === "2026-07-11");
+  // 3. 查找今日打卡记录 (假定今日为 2026-07-11 或 2026-07-12)
+  const todayRecord = attendanceRecords.find(r => r.userId === user?.id && (r.date === "2026-07-11" || r.date === "2026-07-12"));
 
   // 4. 选择公告列表
   const unreadCount = announcements.filter(a => !a.confirmedUserIds.includes(user?.id || "")).length;
+
 
   return (
     <StaffLayout title="STAFF 移动工作站">

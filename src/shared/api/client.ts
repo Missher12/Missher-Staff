@@ -151,6 +151,16 @@ export const apiClient = {
     return (await res.json()).success;
   },
 
+  async createInterviewSlot(slot: any) {
+    if (isMock()) return mockApiAdapter.createInterviewSlot(slot);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/interviews`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(slot)
+    });
+    return (await res.json()).data;
+  },
+
   // --- FINAL ADMISSIONS ---
   async finalAdmission(applicationId: string, status: "EMPLOYED" | "REJECTED", groupId?: string, positionId?: string, assignedDates?: string[], adminId?: string) {
     if (isMock()) return mockApiAdapter.finalAdmission(applicationId, status, groupId, positionId, assignedDates, adminId);
@@ -326,5 +336,21 @@ export const apiClient = {
       body: JSON.stringify({ status, adminId })
     });
     return (await res.json()).success;
+  },
+
+  async getPeople() {
+    if (isMock()) return mockApiAdapter.getPeople();
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users`);
+    return (await res.json()).data;
+  },
+
+  async updateUserRole(userId: string, role: string) {
+    if (isMock()) return mockApiAdapter.updateUserRole(userId, role);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users/${userId}/role`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role })
+    });
+    return (await res.json()).data;
   }
 };

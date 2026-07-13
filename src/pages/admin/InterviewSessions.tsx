@@ -5,7 +5,7 @@ import { BentoGrid, BentoCard } from "../../shared/ui";
 import { Calendar, Users, MapPin, Plus, Save, Scan, CheckCircle, Clock } from "lucide-react";
 
 export const InterviewSessions: React.FC = () => {
-  const { interviewSlots, createInterviewSlot, scanInterviewQrCode } = useEventStore();
+  const { interviewSlots, createInterviewSlot, scanInterviewQrCode, showToast } = useEventStore();
 
   // Form states for creating slot
   const [newDate, setNewDate] = useState("2026-07-10");
@@ -29,12 +29,12 @@ export const InterviewSessions: React.FC = () => {
       leaderName: "陈大伟",
       limit: Number(newLimit)
     });
-    alert("面试新场次创建成功！");
+    showToast("面试新场次创建成功！", "success");
   };
 
   const handleSimulateScan = async () => {
     if (!scanUserId) {
-      alert("请输入要核销签到的用户 ID");
+      showToast("请输入要核销签到的用户 ID", "error");
       return;
     }
     const res = await scanInterviewQrCode(scanUserId, selectedSlotId);

@@ -85,7 +85,7 @@ export const SuperAdminDashboard: React.FC = () => {
 // 2. SuperAdminActivities (活动全生命周期、创建与复制)
 // ==========================================
 export const SuperAdminActivities: React.FC = () => {
-  const { activities } = useEventStore();
+  const { activities, showToast } = useEventStore();
   const [list, setList] = useState(activities);
 
   const handleCopyActivity = (id: string) => {
@@ -100,7 +100,7 @@ export const SuperAdminActivities: React.FC = () => {
     };
 
     setList(p => [...p, copy]);
-    alert(`活动复制成功！已自动克隆报名表表单设计、岗位分配及考点基准GPS范围：${copy.name}`);
+    showToast(`活动复制成功！已自动克隆报名表表单设计、岗位分配及考点基准GPS范围：${copy.name}`, "success");
   };
 
   return (
@@ -113,7 +113,7 @@ export const SuperAdminActivities: React.FC = () => {
           </div>
 
           <button 
-            onClick={() => alert("功能展示：超级管理员可在这里点击『创建新活动』创建全新的大型漫展活动")}
+            onClick={() => showToast("功能展示：超级管理员可在这里点击『创建新活动』创建全新的大型漫展活动", "info")}
             className="px-4 py-2 bg-[#BF5AF2] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md"
           >
             <PlusCircle size={14} /> 新建空会期活动
@@ -142,7 +142,7 @@ export const SuperAdminActivities: React.FC = () => {
                   <Copy size={13} /> 快捷复制
                 </button>
                 <button 
-                  onClick={() => alert("该会期活动已安全归档结账，所有打卡定位日志已备份到云端。")}
+                  onClick={() => showToast("该会期活动已安全归档结账，所有打卡定位日志已备份到云端。", "success")}
                   className="px-3.5 py-2 bg-zinc-100 rounded-xl text-xs font-bold text-[#FF453A] cursor-pointer flex items-center gap-1"
                 >
                   <Archive size={13} /> 归档结账
@@ -231,6 +231,7 @@ export const SuperAdminAdministrators: React.FC = () => {
 // 4. SuperAdminGlobalSettings (全局防作弊参数与安全)
 // ==========================================
 export const SuperAdminGlobalSettings: React.FC = () => {
+  const { showToast } = useEventStore();
   const [radius, setRadius] = useState(300);
   const [photoMatch, setPhotoMatch] = useState(85);
 
@@ -288,7 +289,7 @@ export const SuperAdminGlobalSettings: React.FC = () => {
           </div>
 
           <button 
-            onClick={() => alert("全局防作弊安全参数在内存中更新成功！对应规则已实时应用至移动端定位和活体拍照API。")}
+            onClick={() => showToast("全局防作弊安全参数在内存中更新成功！对应规则已实时应用至移动端定位 and 活体拍照API。", "success")}
             className="px-6 py-2.5 bg-[#BF5AF2] text-white text-xs font-bold rounded-xl hover:bg-[#BF5AF2]/95 cursor-pointer shadow-md"
           >
             保存安全防作弊规则

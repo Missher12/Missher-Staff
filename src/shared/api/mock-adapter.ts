@@ -494,6 +494,18 @@ export const mockApiAdapter = {
     return true;
   },
 
+  async createInterviewSlot(slot: Omit<InterviewSlot, "id" | "reservedCount" | "attendedCount">): Promise<InterviewSlot> {
+    await delay();
+    const newSlot: InterviewSlot = {
+      ...slot,
+      id: `SLOT_${Date.now()}`,
+      reservedCount: 0,
+      attendedCount: 0
+    };
+    db.interviewSlots.push(newSlot);
+    return newSlot;
+  },
+
   // --- FINAL ADMISSIONS ---
   async finalAdmission(applicationId: string, status: "EMPLOYED" | "REJECTED", groupId?: string, positionId?: string, assignedDates?: string[], adminId?: string): Promise<boolean> {
     await delay();
@@ -929,5 +941,18 @@ export const mockApiAdapter = {
       return db.attendanceCorrections.filter(c => c.attendanceId === attendanceId);
     }
     return db.attendanceCorrections;
+  },
+
+  async getPeople(): Promise<User[]> {
+    await delay(100);
+    return db.users;
+  },
+
+  async updateUserRole(userId: string, role: string): Promise<User> {
+    await delay(150);
+    const user = db.users.find(u => u.id === userId);
+    if (!user) throw new NotFoundError("用户不存在");
+    user.role = role as any;
+    return user;
   }
 };

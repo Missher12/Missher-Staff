@@ -10,7 +10,14 @@ import {
   useAttendanceCorrections,
   useCorrectAttendance,
   useCorrectionSuggestions,
-  useApproveCorrectionSuggestion
+  useApproveCorrectionSuggestion,
+  usePeople,
+  useUpdateUserRole,
+  useGroups,
+  useAnnouncements,
+  useCreateAnnouncement,
+  useLeaveRequests,
+  useAuditLeaveRequest
 } from "../../shared/hooks/useQueries";
 import { 
   Users, UserCheck, ShieldCheck, Megaphone, FileText, 
@@ -105,75 +112,134 @@ export const AdminGroups: React.FC = () => {
 // 2. AdminLeave (请假最终审批控制台)
 // ==========================================
 export const AdminLeave: React.FC = () => {
-  const [leaves, setLeaves] = useState([
-    { id: "L_01", userName: "苏苏", date: "2026-07-12", group: "舞台控场组", reason: "学校有紧急论文答辩需要请假半天", status: "LEADER_APPROVED" }
-  ]);
+  const { user } = useAuthStore();
+  const { showToast } = useEventStore();
+  const { data: leaves = [], isLoading } = useLeaveRequests({});
+  const auditMutation = useAuditLeaveRequest();
 
   const handleFinalAudit = (id: string, isApprove: boolean) => {
-    setLeaves(prev => prev.map(l => {
-      if (l.id === id) {
-        return { ...l, status: isApprove ? "APPROVED" : "REJECTED" };
+    if (!user) return;
+    const finalStatus = isApprove ? "APPROVED" : "REJECTED";
+
+    auditMutation.mutate({
+      id,
+      status: finalStatus,
+      comment: isApprove ? "总部终审批准，自动扣减今日应到人数，并录入劳务及保险结算结算剔除名单。" : "终审驳回，请继续到岗出勤。",
+      auditorId: user.id,
+      role: "ADMIN"
+    }, {
+      onSuccess: () => {
+        showToast(
+          isApprove 
+            ? "请假单终审核准！已核减出勤考核，并自动写入保费/劳务扣减名单。" 
+            : "请假单终审已驳回，相关拒绝结果已通知组员及组长。", 
+          "success"
+        );
+      },
+      onError: (err: any) => {
+        showToast(`审核提交失败: ${err.message}`, "error");
       }
-      return l;
-    }));
-    alert(isApprove ? "请假单终审核准！已强制核减今日出勤应到人数，并录入保险退扣名单。" : "终审驳回，通知已流转");
+    });
   };
+
+  // Divide into pending admin (which leader approved) and already processed
+  const pendingLeaves = (leaves || []).filter(l => l.status === "PENDING_ADMIN");
+  const processedLeaves = (leaves || []).filter(l => l.status === "APPROVED" || l.status === "REJECTED");
 
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="border-b border-black/5 pb-4">
-          <h2 className="text-xl font-bold text-[#1D1D1F]">STAFF 请假终审控制台</h2>
-          <p className="text-xs text-[#86868B] font-medium mt-1">处理经由组长初步审核上报的请假单，进行最终裁决及保险/劳务清扣核算。</p>
+        <div className="flex justify-between items-center border-b border-black/5 pb-4">
+          <div>
+            <h2 className="text-xl font-bold text-[#1D1D1F]">STAFF 请假终审控制台</h2>
+            <p className="text-xs text-[#86868B] font-medium mt-1">处理经由组长初步审核上报的请假单，进行最终裁决及保险/劳务清扣核算。</p>
+          </div>
+          <span className="px-2.5 py-1 bg-[#0A84FF]/10 text-[#0A84FF] rounded-full text-[10px] font-bold border border-[#0A84FF]/20">
+            Audit Trail Enabled
+          </span>
         </div>
 
-        <div className="space-y-4 max-w-3xl">
-          {leaves.map((l) => (
-            <div key={l.id} className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-50 text-[#FF453A] flex items-center justify-center font-bold text-sm">
-                    {l.userName.charAt(0)}
+        <div className="space-y-6 max-w-3xl">
+          {/* Pending Final Approvals */}
+          <div className="space-y-3">
+            <span className="text-[10px] font-extrabold text-[#86868B] tracking-wide uppercase block">
+              待总部终审 ({pendingLeaves.length})
+            </span>
+
+            {isLoading ? (
+              <div className="text-center py-6 text-xs text-zinc-400 font-semibold">加载请假申请库...</div>
+            ) : pendingLeaves.length === 0 ? (
+              <div className="text-center py-8 bg-zinc-50 border border-black/5 rounded-2xl text-xs text-[#86868B] font-semibold">
+                当前没有待您终审的请假单。所有组员假单均已处理或待组长初审。
+              </div>
+            ) : (
+              pendingLeaves.map((l) => (
+                <div key={l.id} className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-50 text-[#FF9F0A] flex items-center justify-center font-bold text-sm">
+                        {l.userName?.charAt(0)}
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-bold text-[#1D1D1F]">{l.userName} (手机: {l.userPhone || "保密"})</h3>
+                        <p className="text-[10px] text-zinc-400 font-mono">申请休假会期日期：{l.date}</p>
+                      </div>
+                    </div>
+
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-[#FF9F0A]">
+                      ● 组长已初审通过
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-[#1D1D1F]">{l.userName} (所属：{l.group})</h3>
-                    <p className="text-[10px] text-zinc-400 font-mono">请假日期：{l.date}</p>
+
+                  <div className="p-4 bg-slate-50 border border-black/5 rounded-2xl text-xs text-zinc-700 leading-relaxed font-semibold">
+                    请假原因：{l.reason}
+                  </div>
+
+                  <div className="flex gap-2 justify-end">
+                    <button 
+                      disabled={auditMutation.isPending}
+                      onClick={() => handleFinalAudit(l.id, true)}
+                      className="px-5 py-2 bg-[#30D158] hover:bg-[#30D158]/90 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <CheckCircle size={14} /> 准予休假
+                    </button>
+                    <button 
+                      disabled={auditMutation.isPending}
+                      onClick={() => handleFinalAudit(l.id, false)}
+                      className="px-5 py-2 bg-red-50 border border-red-200 text-[#FF453A] font-bold text-xs rounded-xl hover:bg-red-100 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <XCircle size={14} /> 予以驳回
+                    </button>
                   </div>
                 </div>
+              ))
+            )}
+          </div>
 
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  l.status === "LEADER_APPROVED" 
-                    ? "bg-amber-50 text-[#FF9F0A]" 
-                    : l.status === "APPROVED" 
-                      ? "bg-green-50 text-[#30D158]" 
-                      : "bg-red-50 text-[#FF453A]"
-                }`}>
-                  {l.status === "LEADER_APPROVED" ? "● 组长已同意 (待总部终审)" : l.status === "APPROVED" ? "已终审批准" : "终审拒绝"}
-                </span>
+          {/* Already Audited List */}
+          <div className="space-y-3">
+            <span className="text-[10px] font-extrabold text-[#86868B] tracking-wide uppercase block">
+              请假审批历史记录 ({processedLeaves.length})
+            </span>
+
+            {processedLeaves.length > 0 && (
+              <div className="bg-white border border-black/5 rounded-[22px] p-4.5 shadow-sm space-y-3">
+                {processedLeaves.map((l) => (
+                  <div key={l.id} className="flex justify-between items-center text-xs border-b border-zinc-50 pb-3 last:border-b-0 last:pb-0">
+                    <div>
+                      <h4 className="font-bold text-[#1D1D1F]">{l.userName}</h4>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">请假日期：{l.date} | 事由: {l.reason}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                      l.status === "APPROVED" ? "bg-green-50 text-[#30D158]" : "bg-red-50 text-[#FF453A]"
+                    }`}>
+                      {l.status === "APPROVED" ? "准予休假" : "予以驳回"}
+                    </span>
+                  </div>
+                ))}
               </div>
-
-              <div className="p-4 bg-slate-50 border border-black/5 rounded-2xl text-xs text-zinc-700 leading-relaxed font-semibold">
-                事由：{l.reason}
-              </div>
-
-              {l.status === "LEADER_APPROVED" && (
-                <div className="flex gap-2 justify-end">
-                  <button 
-                    onClick={() => handleFinalAudit(l.id, true)}
-                    className="px-5 py-2 bg-[#30D158] hover:bg-[#30D158]/90 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
-                  >
-                    <CheckCircle size={14} /> 准予休假
-                  </button>
-                  <button 
-                    onClick={() => handleFinalAudit(l.id, false)}
-                    className="px-5 py-2 bg-red-50 border border-red-200 text-[#FF453A] font-bold text-xs rounded-xl hover:bg-red-100 transition-all cursor-pointer flex items-center gap-1.5"
-                  >
-                    <XCircle size={14} /> 予以驳回
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+            )}
+          </div>
         </div>
       </div>
     </AdminLayout>
@@ -184,30 +250,36 @@ export const AdminLeave: React.FC = () => {
 // 3. AdminAnnouncements (公告管理发布)
 // ==========================================
 export const AdminAnnouncements: React.FC = () => {
-  const { announcements, confirmAnnouncement } = useEventStore();
+  const { showToast } = useEventStore();
   const [titleInput, setTitleInput] = useState("");
   const [contentInput, setContentInput] = useState("");
   const [isRequired, setIsRequired] = useState(false);
-  const [annList, setAnnList] = useState(announcements);
+
+  const { data: annList = [], isLoading } = useAnnouncements();
+  const createAnnMutation = useCreateAnnouncement();
 
   const handlePublish = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!titleInput || !contentInput) return;
+    if (!titleInput.trim() || !contentInput.trim()) {
+      showToast("请填写完整的公告标题与内容！", "error");
+      return;
+    }
 
-    const newAnn = {
-      id: `ANN_${Date.now()}`,
+    createAnnMutation.mutate({
       title: titleInput,
       content: contentInput,
-      publishDate: new Date().toISOString().substring(0, 10),
-      isRequiredConfirm: isRequired,
-      confirmedUserIds: []
-    };
-
-    setAnnList(p => [newAnn, ...p]);
-    setTitleInput("");
-    setContentInput("");
-    setIsRequired(false);
-    alert("公告发布成功！已对目标受众推送全屏强阻断阅读或消息提示。");
+      isRequiredConfirm: isRequired
+    }, {
+      onSuccess: () => {
+        showToast("公告起草成功！已对目标受众推送考务消息提醒。", "success");
+        setTitleInput("");
+        setContentInput("");
+        setIsRequired(false);
+      },
+      onError: (err: any) => {
+        showToast(`发布公告失败: ${err.message}`, "error");
+      }
+    });
   };
 
   return (
@@ -261,9 +333,10 @@ export const AdminAnnouncements: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-3 bg-[#0A84FF] text-white font-bold text-xs rounded-xl hover:bg-[#0A84FF]/95 transition-all cursor-pointer"
+              disabled={createAnnMutation.isPending}
+              className="w-full py-3 bg-[#0A84FF] text-white font-bold text-xs rounded-xl hover:bg-[#0A84FF]/95 transition-all cursor-pointer disabled:opacity-50"
             >
-              起草并广播该公告通知
+              {createAnnMutation.isPending ? "正在发布及广播中..." : "起草并广播该公告通知"}
             </button>
           </form>
 
@@ -271,24 +344,34 @@ export const AdminAnnouncements: React.FC = () => {
           <div className="lg:col-span-2 space-y-3">
             <span className="text-[10px] font-extrabold text-[#86868B] tracking-wide uppercase block">已发历史公告一览</span>
             
-            {annList.map((ann) => (
-              <div key={ann.id} className="bg-white border border-black/5 rounded-2xl p-4.5 shadow-sm space-y-2 relative overflow-hidden">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${
-                      ann.isRequiredConfirm ? "bg-red-50 text-[#FF453A]" : "bg-blue-50 text-[#0A84FF]"
-                    }`}>
-                      {ann.isRequiredConfirm ? "物理强阻断公告" : "普通通知"}
-                    </span>
-                    <h4 className="text-xs font-bold text-[#1D1D1F] mt-1.5">{ann.title}</h4>
-                  </div>
-                  <span className="text-[9px] font-mono text-zinc-400 shrink-0">发布：{ann.publishDate}</span>
-                </div>
-                <p className="text-xs text-zinc-500 leading-relaxed font-semibold">
-                  {ann.content}
-                </p>
+            {isLoading ? (
+              <div className="text-center py-10 text-xs text-zinc-400 font-semibold">
+                正在加载最新考务通知...
               </div>
-            ))}
+            ) : annList.length === 0 ? (
+              <div className="text-center py-10 bg-white border border-black/5 rounded-[22px] text-xs text-[#86868B] font-semibold">
+                当前暂无已发布的考务通知。
+              </div>
+            ) : (
+              annList.map((ann: any) => (
+                <div key={ann.id} className="bg-white border border-black/5 rounded-2xl p-4.5 shadow-sm space-y-2 relative overflow-hidden">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${
+                        ann.isRequiredConfirm ? "bg-red-50 text-[#FF453A]" : "bg-blue-50 text-[#0A84FF]"
+                      }`}>
+                        {ann.isRequiredConfirm ? "物理强阻断公告" : "普通通知"}
+                      </span>
+                      <h4 className="text-xs font-bold text-[#1D1D1F] mt-1.5">{ann.title}</h4>
+                    </div>
+                    <span className="text-[9px] font-mono text-zinc-400 shrink-0">发布：{ann.publishDate}</span>
+                  </div>
+                  <p className="text-xs text-zinc-500 leading-relaxed font-semibold">
+                    {ann.content}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -300,6 +383,7 @@ export const AdminAnnouncements: React.FC = () => {
 // 4. AdminImports (数据批量导入、导出)
 // ==========================================
 export const AdminImports: React.FC = () => {
+  const { showToast } = useEventStore();
   const [importing, setImporting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -376,7 +460,7 @@ export const AdminImports: React.FC = () => {
             </div>
 
             <button 
-              onClick={() => alert("代发清册一键下载成功！文件名：STAFF_LAOWU_SETTLEMENT_2026.xlsx")}
+              onClick={() => showToast("代发清册一键下载成功！文件名：STAFF_LAOWU_SETTLEMENT_2026.xlsx", "success")}
               className="w-full py-3.5 bg-[#30D158] text-white font-bold text-xs rounded-xl hover:bg-[#30D158]/95 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               一键导出劳务打卡结算 Excel
@@ -452,6 +536,7 @@ export const ActivityList: React.FC = () => {
 // 6. FormBuilder (动态报名表表单设计器)
 // ==========================================
 export const FormBuilder: React.FC = () => {
+  const { showToast } = useEventStore();
   const [fields, setFields] = useState<any[]>([
     { id: "1", label: "姓名", type: "text", required: true, isSensitive: false },
     { id: "2", label: "手机号码", type: "phone", required: true, isSensitive: true },
@@ -551,7 +636,7 @@ export const FormBuilder: React.FC = () => {
             <div className="flex justify-between items-center">
               <span className="text-[10px] font-extrabold text-[#86868B] tracking-wide uppercase">画布预览（可拖动规划）</span>
               <button 
-                onClick={() => alert("表单设计已发布！手机报名端已实时替换为新设计的表单模型。")}
+                onClick={() => showToast("表单设计已发布！手机报名端已实时替换为新设计的表单模型。", "success")}
                 className="px-4 py-2 bg-[#30D158] hover:bg-[#30D158]/95 text-white text-xs font-bold rounded-xl cursor-pointer"
               >
                 保存并发布报名表
@@ -593,7 +678,7 @@ export const FormBuilder: React.FC = () => {
 // 5. AdminInterviews (面试评分)
 // ==========================================
 export const AdminInterviews: React.FC = () => {
-  const { applications, employStaff } = useEventStore();
+  const { applications, employStaff, showToast } = useEventStore();
 
   const reviews = applications.filter(a => 
     a.employmentStatus === "PENDING" && 
@@ -602,7 +687,12 @@ export const AdminInterviews: React.FC = () => {
 
   const handleAction = (id: string, action: "APPROVED" | "REJECTED") => {
     employStaff(id, action === "APPROVED", "舞台控场组", "舞台控场岗");
-    alert(action === "APPROVED" ? "已同意录取该 STAFF，身份已自动升级，已分配至 [舞台控场组]，系统已同步实名保险并发出短信引导。" : "已暂缓录取，对应记录已归档。");
+    showToast(
+      action === "APPROVED" 
+        ? "已同意录取该 STAFF，身份已自动升级，已分配至 [舞台控场组]，系统已同步实名保险并发出短信引导。" 
+        : "已暂缓录取，对应记录已归档。",
+      action === "APPROVED" ? "success" : "info"
+    );
   };
 
   return (
@@ -1033,13 +1123,29 @@ export const AdminAdmissions: React.FC = () => {
 // ==========================================
 export const AdminPeople: React.FC = () => {
   const [search, setSearch] = useState("");
-  const users = [
-    { id: "1", name: "林可儿", role: "STAFF", phone: "13800000001", status: "ACTIVE" },
-    { id: "2", name: "陈大伟", role: "LEADER", phone: "13900000002", status: "ACTIVE" },
-    { id: "3", name: "苏苏", role: "APPLICANT", phone: "13111110000", status: "PENDING" }
-  ];
+  const { showToast } = useEventStore();
+  const { data: users = [], isLoading } = usePeople();
+  const updateRoleMutation = useUpdateUserRole();
 
-  const filtered = users.filter(u => u.name.includes(search) || u.phone.includes(search));
+  const handleRoleChange = (userId: string, currentRole: string) => {
+    // Cycle roles: APPLICANT -> STAFF -> LEADER -> APPLICANT
+    let nextRole = "APPLICANT";
+    if (currentRole === "APPLICANT") nextRole = "STAFF";
+    else if (currentRole === "STAFF") nextRole = "LEADER";
+
+    updateRoleMutation.mutate({ userId, role: nextRole }, {
+      onSuccess: () => {
+        showToast(`成功将人员角色变更为 ${nextRole}！派岗与考勤权限已实时刷。`, "success");
+      },
+      onError: (err: any) => {
+        showToast(`变更角色失败: ${err.message}`, "error");
+      }
+    });
+  };
+
+  const filtered = (users || []).filter((u: any) => 
+    u.name.includes(search) || u.phone.includes(search)
+  );
 
   return (
     <AdminLayout>
@@ -1049,43 +1155,59 @@ export const AdminPeople: React.FC = () => {
             <h2 className="text-xl font-bold text-[#1D1D1F]">全量人员底片控制面板</h2>
             <p className="text-xs text-[#86868B] font-medium mt-1">查看、变更当前动漫展会所有报名人员、STAFF 以及各组长的角色与底片。</p>
           </div>
-          <input 
-            placeholder="搜索姓名或电话..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="px-3.5 py-2 border border-black/5 rounded-xl text-xs bg-white outline-none font-semibold"
-          />
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 bg-amber-50 text-[#FF9F0A] border border-amber-200 rounded-full text-[10px] font-bold">
+              Mock Status: Active
+            </span>
+            <input 
+              placeholder="搜索姓名或电话..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="px-3.5 py-2 border border-black/5 rounded-xl text-xs bg-white outline-none font-semibold"
+            />
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
-          {filtered.map((u) => (
-            <div key={u.id} className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm flex justify-between items-center text-xs">
-              <div>
-                <h4 className="font-bold text-[#1D1D1F] text-sm">{u.name}</h4>
-                <p className="text-[10px] text-zinc-400 font-mono mt-1">账号：{u.phone} | 系统标识: {u.id}</p>
-              </div>
+        {isLoading ? (
+          <div className="text-center py-10 text-xs text-zinc-400 font-semibold">
+            正在读取人员数据库底片...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-10 bg-white border border-black/5 rounded-[22px] text-xs text-[#86868B] font-semibold">
+            没有找到匹配的人员记录。
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {filtered.map((u: any) => (
+              <div key={u.id} className="bg-white border border-black/5 rounded-[22px] p-5 shadow-sm flex justify-between items-center text-xs">
+                <div>
+                  <h4 className="font-bold text-[#1D1D1F] text-sm">{u.name}</h4>
+                  <p className="text-[10px] text-zinc-400 font-mono mt-1">账号/电话：{u.phone} | 系统ID: {u.id}</p>
+                </div>
 
-              <div className="flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                  u.role === "LEADER" 
-                    ? "bg-purple-50 text-[#BF5AF2]" 
-                    : u.role === "STAFF" 
-                      ? "bg-green-50 text-[#30D158]" 
-                      : "bg-blue-50 text-[#0A84FF]"
-                }`}>
-                  {u.role}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                    u.role === "LEADER" 
+                      ? "bg-purple-50 text-[#BF5AF2]" 
+                      : u.role === "STAFF" 
+                        ? "bg-green-50 text-[#30D158]" 
+                        : "bg-blue-50 text-[#0A84FF]"
+                  }`}>
+                    {u.role}
+                  </span>
 
-                <button 
-                  onClick={() => alert(`安全限制：出于防止现场欺诈考勤需要，变更人员角色已触发安全审查邮件。`)}
-                  className="px-2.5 py-1.5 border border-black/5 rounded-xl text-[10px] font-bold hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  提升/降级权限
-                </button>
+                  <button 
+                    disabled={updateRoleMutation.isPending}
+                    onClick={() => handleRoleChange(u.id, u.role)}
+                    className="px-2.5 py-1.5 border border-black/5 rounded-xl text-[10px] font-bold hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    切换/升级角色
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </AdminLayout>
   );
@@ -1095,6 +1217,7 @@ export const AdminPeople: React.FC = () => {
 // 9. AdminAssignments (岗位指派)
 // ==========================================
 export const AdminAssignments: React.FC = () => {
+  const { showToast } = useEventStore();
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -1112,7 +1235,7 @@ export const AdminAssignments: React.FC = () => {
                 <p className="text-[9px] text-zinc-400 mt-0.5">意向: 秩序维持、检票口</p>
               </div>
               <button 
-                onClick={() => alert("成功指派 苏苏 划归至 [舞台控场组] (组长：陈大伟)！派岗指令和实名保险已实时更新。")}
+                onClick={() => showToast("成功指派 苏苏 划归至 [舞台控场组] (组长：陈大伟)！派岗指令和实名保险已实时更新。", "success")}
                 className="px-3 py-1.5 bg-[#0A84FF] text-white font-bold text-[10px] rounded-lg cursor-pointer"
               >
                 指派至舞台控场组

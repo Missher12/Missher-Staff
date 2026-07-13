@@ -235,3 +235,144 @@ export function useConfirmAnnouncement() {
     },
   });
 }
+
+export function useCreateAnnouncement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ann: any) => apiClient.createAnnouncement(ann),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+    },
+  });
+}
+
+// --- LEAVE REQUESTS ---
+
+export function useLeaveRequests(filters: {
+  activityId?: string;
+  userId?: string;
+  status?: "PENDING_LEADER" | "PENDING_ADMIN" | "APPROVED" | "REJECTED";
+}) {
+  return useQuery({
+    queryKey: ["leaveRequests", filters],
+    queryFn: () => apiClient.getLeaveRequests(filters),
+  });
+}
+
+export function useSubmitLeaveRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, leave }: { userId: string; leave: any }) =>
+      apiClient.submitLeaveRequest(userId, leave),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
+    },
+  });
+}
+
+export function useAuditLeaveRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      status,
+      comment,
+      auditorId,
+      role,
+    }: {
+      id: string;
+      status: string;
+      comment: string;
+      auditorId: string;
+      role: string;
+    }) => apiClient.auditLeaveRequest(id, status, comment, auditorId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["attendanceRecords"] });
+    },
+  });
+}
+
+// --- INTERVIEW REVIEW ---
+
+export function useSubmitInterviewReview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      applicationId,
+      rating,
+      comment,
+      leaderId,
+    }: {
+      applicationId: string;
+      rating: "RECOMMENDED" | "WAITING" | "NOT_RECOMMENDED";
+      comment: string;
+      leaderId: string;
+    }) => apiClient.submitInterviewReview(applicationId, rating, comment, leaderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
+    },
+  });
+}
+
+// --- GROUPS CREATION ---
+
+export function useCreateGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      activityId,
+      name,
+      leaderId,
+    }: {
+      activityId: string;
+      name: string;
+      leaderId: string;
+    }) => apiClient.createGroup(activityId, name, leaderId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["groups", variables.activityId] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+    },
+  });
+}
+
+// --- INTERVIEW SLOTS ---
+
+export function useCreateInterviewSlot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (slot: any) => {
+      // In mock DB, we can append to db.interviewSlots directly via adapter/mockDb if needed
+      // Or define createInterviewSlot in apiClient
+      // Let's check if apiClient.createInterviewSlot is needed or already exists.
+      // Wait, let's look at client.ts or mock-adapter.ts to see if it supports creating slots.
+      // If mockApiAdapter has it, we can call it. Let's make sure.
+      return apiClient.createInterviewSlot ? (apiClient as any).createInterviewSlot(slot) : Promise.resolve(slot);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["interviewSlots"] });
+    },
+  });
+}
+
+// --- PEOPLE ---
+
+export function usePeople() {
+  return useQuery({
+    queryKey: ["people"],
+    queryFn: () => apiClient.getPeople(),
+  });
+}
+
+export function useUpdateUserRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      apiClient.updateUserRole(userId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["people"] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+    },
+  });
+}
+

@@ -8,7 +8,7 @@ import { ApplicationStatus } from "../../shared/types";
 
 export const ApplicationReview: React.FC = () => {
   const navigate = useNavigate();
-  const { applications, auditApplication } = useEventStore();
+  const { applications, auditApplication, showToast } = useEventStore();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -42,7 +42,7 @@ export const ApplicationReview: React.FC = () => {
   // 批量操作
   const handleBatchAudit = (status: ApplicationStatus, comment: string) => {
     if (selectedIds.length === 0) {
-      alert("请先选择要进行批量操作的申请件！");
+      showToast("请先选择要进行批量操作的申请件！", "error");
       return;
     }
     
@@ -50,7 +50,7 @@ export const ApplicationReview: React.FC = () => {
       auditApplication(id, status, "系统管理员(张晓明)", comment);
     });
 
-    alert(`成功批量审核通过 ${selectedIds.length} 个岗位申请件！`);
+    showToast(`成功批量审核通过 ${selectedIds.length} 个岗位申请件！`, "success");
     setSelectedIds([]);
   };
 
