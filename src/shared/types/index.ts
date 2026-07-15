@@ -55,6 +55,8 @@ export interface User {
   bankCard?: string; // 银行卡
   bankName?: string; // 开户行
   bankBranch?: string; // 支行
+  createdAt?: string;
+  status?: string;
 }
 
 // 7. 岗位定义

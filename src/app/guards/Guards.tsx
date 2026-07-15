@@ -3,6 +3,8 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { useEventStore } from "../stores/eventStore";
 import { AlertCircle, FileText, Check } from "lucide-react";
+import { PermissionCode } from "../../shared/types";
+import { db } from "../../shared/api/mock-adapter";
 
 // ==========================================
 // 1. RoleGuard (角色安全路由守卫)
@@ -47,7 +49,8 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) 
 // ==========================================
 export function usePermission() {
   const { user } = useAuthStore();
-  const { adminAssignments, permissionGroups } = useEventStore();
+  const adminAssignments = db.adminAssignments;
+  const permissionGroups = db.permissionGroups;
 
   const hasPermission = (permission: PermissionCode, activityId?: string): boolean => {
     if (!user) return false;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useEventStore } from "../../app/stores/eventStore";
+import { useAuthStore } from "../../app/stores/authStore";
 import { AdminLayout } from "../../app/layouts/AdminLayout";
 import { apiClient } from "../../shared/api/client";
 import { PermissionCode, SettingCategory, SystemSetting, AdminPermissionGroup, AuditLog } from "../../shared/types";
@@ -11,7 +12,7 @@ import {
 
 // List of all 12 Settings Centers
 interface SidebarItem {
-  key: SettingCategory | "admins";
+  key: SettingCategory | "admins" | "permission-groups" | "audit-logs";
   name: string;
   description: string;
   icon: React.ComponentType<any>;
@@ -88,8 +89,9 @@ const PERMISSION_METADATA = [
 ];
 
 export const AdminSettingsCenter: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<SettingCategory | "admins">("general");
-  const { showToast, currentUser } = useEventStore();
+  const [activeTab, setActiveTab] = useState<SettingCategory | "admins" | "permission-groups" | "audit-logs">("general");
+  const { showToast } = useEventStore();
+  const { user: currentUser } = useAuthStore();
   
   // Settings values loading state
   const [settings, setSettings] = useState<Record<string, any>>({});
