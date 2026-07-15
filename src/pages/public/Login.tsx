@@ -33,8 +33,6 @@ export const Login: React.FC = () => {
           navigate("/staff/dashboard");
         } else if (currentRole === "LEADER") {
           navigate("/leader/dashboard");
-        } else if (currentRole === "SUPER_ADMIN") {
-          navigate("/super-admin/dashboard");
         } else {
           navigate("/admin/dashboard");
         }
@@ -48,7 +46,7 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleDemoClick = (role: "APPLICANT" | "STAFF" | "LEADER" | "ACTIVITY_ADMIN" | "SUPER_ADMIN") => {
+  const handleDemoClick = (role: "APPLICANT" | "STAFF" | "LEADER" | "ADMIN") => {
     loginAsRole(role);
     if (role === "APPLICANT") {
       navigate("/applicant/dashboard");
@@ -56,8 +54,6 @@ export const Login: React.FC = () => {
       navigate("/staff/dashboard");
     } else if (role === "LEADER") {
       navigate("/leader/dashboard");
-    } else if (role === "SUPER_ADMIN") {
-      navigate("/super-admin/dashboard");
     } else {
       navigate("/admin/dashboard");
     }
@@ -158,7 +154,7 @@ export const Login: React.FC = () => {
             <span className="text-[10px] font-bold text-[#86868B] tracking-wider uppercase block mb-2.5 flex items-center gap-1">
               <UserCheck size={12} className="text-[#0A84FF]" /> 快速体验账号 (免密码直接登录)
             </span>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
               <button
                 type="button"
                 onClick={() => handleDemoClick("APPLICANT")}
@@ -182,17 +178,10 @@ export const Login: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => handleDemoClick("ACTIVITY_ADMIN")}
+                onClick={() => handleDemoClick("ADMIN")}
                 className="px-2.5 py-2 bg-blue-50 hover:bg-blue-100 border border-[#0A84FF]/20 text-xs font-semibold text-[#0A84FF] rounded-xl transition-colors cursor-pointer text-center"
               >
-                张晓明 (主管)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoClick("SUPER_ADMIN")}
-                className="px-2.5 py-2 bg-purple-50 hover:bg-purple-100 border border-[#BF5AF2]/20 text-xs font-semibold text-[#BF5AF2] rounded-xl transition-colors cursor-pointer text-center col-span-2 md:col-span-1"
-              >
-                赵天成 (超管)
+                张晓明 (管理员)
               </button>
             </div>
             

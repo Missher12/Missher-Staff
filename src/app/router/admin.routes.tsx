@@ -2,6 +2,7 @@ import React from "react";
 import { AdminDashboard } from "../../pages/admin/AdminDashboard";
 import { ApplicationReview } from "../../pages/admin/ApplicationReview";
 import { ApplicationDetail } from "../../pages/admin/ApplicationDetail";
+import { AdminSettingsCenter } from "../../pages/admin/AdminSettingsCenter";
 import { 
   AdminGroups, AdminLeave, AdminAnnouncements, AdminImports, 
   ActivityList, FormBuilder,
@@ -16,7 +17,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminDashboard />
       </RoleGuard>
     )
@@ -24,15 +25,23 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/dashboard", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminDashboard />
+      </RoleGuard>
+    )
+  },
+  { 
+    path: "/admin/settings", 
+    element: (
+      <RoleGuard allowedRoles={["ADMIN"]}>
+        <AdminSettingsCenter />
       </RoleGuard>
     )
   },
   { 
     path: "/admin/activities", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <ActivityList />
       </RoleGuard>
     )
@@ -40,7 +49,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/applications", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <ApplicationReview />
       </RoleGuard>
     )
@@ -48,7 +57,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/applications/:applicationId", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <ApplicationDetail />
       </RoleGuard>
     )
@@ -56,7 +65,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/interviews", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminInterviews />
       </RoleGuard>
     )
@@ -64,7 +73,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/admissions", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminAdmissions />
       </RoleGuard>
     )
@@ -72,7 +81,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/people", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminPeople />
       </RoleGuard>
     )
@@ -80,7 +89,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/assignments", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminAssignments />
       </RoleGuard>
     )
@@ -88,7 +97,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/attendance/realtime", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminAttendanceRealtime />
       </RoleGuard>
     )
@@ -96,7 +105,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/attendance", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminAttendance />
       </RoleGuard>
     )
@@ -104,7 +113,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/attendance/:attendanceId", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminAttendanceDetail />
       </RoleGuard>
     )
@@ -112,7 +121,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/attendance/corrections", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminAttendanceCorrections />
       </RoleGuard>
     )
@@ -120,7 +129,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/form-builder", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <FormBuilder />
       </RoleGuard>
     )
@@ -128,7 +137,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/groups", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminGroups />
       </RoleGuard>
     )
@@ -136,7 +145,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/leave", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminLeave />
       </RoleGuard>
     )
@@ -144,7 +153,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/announcements", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminAnnouncements />
       </RoleGuard>
     )
@@ -152,7 +161,7 @@ export const adminRoutes: RouteConfig[] = [
   { 
     path: "/admin/imports", 
     element: (
-      <RoleGuard allowedRoles={["ACTIVITY_ADMIN", "SUPER_ADMIN"]}>
+      <RoleGuard allowedRoles={["ADMIN"]}>
         <AdminImports />
       </RoleGuard>
     )

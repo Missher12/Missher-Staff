@@ -2,10 +2,293 @@ import {
   Activity, User, Application, InterviewSlot, AttendanceRecord, Group, Announcement,
   LeaveRequest, CorrectionSuggestion, InviteLink, Notification, AuditLog,
   AttendanceStatus, ApplicationStatus, InterviewStatus, EmploymentStatus,
-  AttendanceSnapshot, AttendanceCorrection, InterviewQrToken, GroupLeaderAssignment
+  AttendanceSnapshot, AttendanceCorrection, InterviewQrToken, GroupLeaderAssignment,
+  AdminPermissionGroup, AdminAssignment, SystemSetting, PermissionCode, SettingCategory
 } from "../types";
 import { mockUsers, mockActivities, mockApplications, mockInterviewSlots, mockGroups, mockAttendanceRecords, mockAnnouncements } from "../mocks/data";
 import { ApiError, NotFoundError, ForbiddenError, ConflictError } from "./errors";
+
+// Default pre-seeded admin permission groups, assignments, settings and integrations
+const initialPermissionGroups: AdminPermissionGroup[] = [
+  {
+    id: "PG_SYS_ADMIN",
+    name: "系统管理员",
+    description: "具有系统全部最高管理和配置权限",
+    isSystem: true,
+    permissions: [
+      "system.settings.general.manage", "system.administrators.manage", "system.permission-groups.manage",
+      "system.integrations.manage", "system.data.manage", "system.security.manage", "system.audit.view",
+      "activity.create", "activity.edit", "activity.delete", "activity.archive", "activity.unlock",
+      "application.view", "application.review", "interview.view", "interview.manage", "interview.scan", "interview.review",
+      "admission.view", "admission.decide", "people.view", "people.manage", "people.sensitive.view",
+      "group.view", "group.manage", "position.manage", "staff.assign", "attendance.view", "attendance.group.view",
+      "attendance.correct", "attendance.export", "leave.view", "leave.review", "announcement.view", "announcement.publish",
+      "form.view", "form.manage", "data.import", "data.export"
+    ],
+    createdAt: "2026-07-12 12:00:00",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    id: "PG_ACT_OWNER",
+    name: "活动负责人",
+    description: "负责特定活动的全生命周期管理",
+    isSystem: false,
+    permissions: [
+      "activity.create", "activity.edit", "activity.archive", "activity.unlock",
+      "application.view", "application.review", "interview.view", "interview.manage", "interview.scan", "interview.review",
+      "admission.view", "admission.decide", "group.view", "group.manage", "position.manage", "staff.assign",
+      "attendance.view", "attendance.group.view", "attendance.correct", "attendance.export", "leave.view", "leave.review",
+      "announcement.view", "announcement.publish", "form.view", "form.manage", "data.import", "data.export"
+    ],
+    createdAt: "2026-07-12 12:00:00",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    id: "PG_APP_AUDITOR",
+    name: "报名审核员",
+    description: "专职负责初审报名人员资料",
+    isSystem: false,
+    permissions: [
+      "application.view", "application.review", "people.view"
+    ],
+    createdAt: "2026-07-12 12:00:00",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    id: "PG_INT_ADMIN",
+    name: "面试管理员",
+    description: "管理面试场次安排与核销、评价",
+    isSystem: false,
+    permissions: [
+      "interview.view", "interview.manage", "interview.scan", "interview.review"
+    ],
+    createdAt: "2026-07-12 12:00:00",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    id: "PG_ATT_ADMIN",
+    name: "考勤管理员",
+    description: "查看和订正所有小组及个人的打卡和请假数据",
+    isSystem: false,
+    permissions: [
+      "attendance.view", "attendance.group.view", "attendance.correct", "attendance.export",
+      "leave.view", "leave.review"
+    ],
+    createdAt: "2026-07-12 12:00:00",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    id: "PG_AUDITOR",
+    name: "只读审计员",
+    description: "审计只读查看系统状态与操作日志",
+    isSystem: false,
+    permissions: [
+      "system.audit.view", "application.view", "interview.view", "attendance.view", "leave.view"
+    ],
+    createdAt: "2026-07-12 12:00:00",
+    updatedAt: "2026-07-12 12:00:00"
+  }
+];
+
+const initialAdminAssignments: AdminAssignment[] = [
+  {
+    id: "ASG_SUPER",
+    userId: "U_SUPER",
+    permissionGroupIds: ["PG_SYS_ADMIN"],
+    directAllowPermissions: [],
+    directDenyPermissions: [],
+    activityIds: ["*"],
+    enabled: true
+  },
+  {
+    id: "ASG_ADMIN",
+    userId: "U_ADMIN",
+    permissionGroupIds: ["PG_SYS_ADMIN"],
+    directAllowPermissions: [],
+    directDenyPermissions: [],
+    activityIds: ["*"],
+    enabled: true
+  }
+];
+
+const initialSettings: SystemSetting[] = [
+  {
+    key: "general",
+    category: "general",
+    value: {
+      systemName: "Missher-Staff 报名与考勤管理系统",
+      systemShortName: "Missher-Staff",
+      logo: "",
+      loginTitle: "Missher-Staff 报名与考勤系统",
+      loginSubtitle: "高效的一站式志愿活动招募、面试与现场考勤平台",
+      defaultLang: "zh-CN",
+      defaultTimezone: "GMT+8",
+      dateFormat: "YYYY-MM-DD",
+      phoneDisplayRule: "MASK_MIDDLE",
+      theme: "light",
+      footerInfo: "© 2026 Missher-Staff. All Rights Reserved.",
+      icpInfo: "浙ICP备20260712号",
+      defaultActivityCover: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60"
+    },
+    updatedBy: "U_SUPER",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    key: "activity-defaults",
+    category: "activity-defaults",
+    value: {
+      defaultAdvanceDays: 7,
+      defaultApplyDeadlineTime: "23:59:59",
+      defaultInterviewAdvanceMinutes: 15,
+      defaultLockDays: 3,
+      defaultWorkingDateRule: "FULL_TIME",
+      defaultMaxLimit: 100,
+      defaultOverLimitProcess: "WAITLIST",
+      defaultWaitlistRule: "FIFO",
+      defaultWithdrawRule: "ALLOW_BEFORE_DEADLINE",
+      defaultConflictRule: "ALERT",
+      defaultArchiveRule: "AUTO_30_DAYS",
+      defaultRetentionPeriodMonths: 24
+    },
+    updatedBy: "U_SUPER",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    key: "attendance",
+    category: "attendance",
+    value: {
+      defaultCheckInTime: "08:30:00",
+      defaultCheckOutTime: "18:00:00",
+      lateGraceMinutes: 15,
+      earlyLeaveGraceMinutes: 5,
+      noCheckOutProcess: "MARK_EXCEPTIONAL",
+      noCheckInProcess: "MARK_EXCEPTIONAL",
+      enableSecondConfirm: true,
+      allowAlbumUpload: false,
+      requireSelfie: true,
+      allowQrCodeBackup: true,
+      shareAttendanceBetweenRoles: true,
+      recordDeviceInfo: true,
+      bindDeviceOnFirstCheckIn: true,
+      gpsPrecisionThresholdMeters: 50,
+      defaultVenueRadiusMeters: 300,
+      exceptional打卡ProcessFlow: "LEADER_SUGGESTION",
+      leaderScanDirectPass: true,
+      photoRetentionMonths: 12,
+      attendanceReportDefaultOpen: true
+    },
+    updatedBy: "U_SUPER",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    key: "application-interview",
+    category: "application-interview",
+    value: {
+      defaultLoginMethod: "PHONE_CODE",
+      autoCreateAccountAfterApply: true,
+      checkDuplicateIdCard: true,
+      checkDuplicatePhone: true,
+      allowMultiActivityApply: false,
+      allowApplyWithdraw: true,
+      defaultChangeTimeDeadlineHours: 24,
+      dynamicQrCodeExpirySeconds: 30,
+      qrCodeRefreshSeconds: 5,
+      allowLeaderInternalRecruit: true,
+      internalRecruitLinkExpiryDays: 7,
+      internalRecruitLimit: 5,
+      leaderVisibleFields: ["name", "gender", "phone", "availableDates", "targetPositions", "experience"],
+      interviewEvaluationTags: ["沟通顺畅", "有经验", "形象良好", "时间充裕", "服从调配"],
+      interviewResultOptions: ["RECOMMENDED", "WAITING", "NOT_RECOMMENDED"],
+      finalEmploymentRule: "ADMIN_DECISION_ONLY"
+    },
+    updatedBy: "U_SUPER",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    key: "data-privacy",
+    category: "data-privacy",
+    value: {
+      idCardDisplayMethod: "MASK_MIDDLE",
+      bankCardDisplayMethod: "MASK_MIDDLE",
+      phoneDesensitizeRule: "MASK_MIDDLE",
+      leaderDefaultFieldPermissions: "RESTRICTED",
+      sensitiveFieldExportPermission: "system.data.manage",
+      idCardPhotoRetentionMonths: 3,
+      bankCardInfoRetentionMonths: 6,
+      applyAttachmentRetentionMonths: 12,
+      attendancePhotoRetentionMonths: 12,
+      afterActivityFinishDeleteRule: "ARCHIVE_ONLY",
+      activityArchiveRule: "AUTO_30_DAYS",
+      dataLockTimeDays: 7,
+      dataUnlockPermission: "system.security.manage",
+      doubleConfirmBeforeDelete: true,
+      exportWatermarkText: "Missher-Staff Confidentials",
+      exportWatermark: true,
+      exportAuditLogging: true
+    },
+    updatedBy: "U_SUPER",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    key: "notifications",
+    category: "notifications",
+    value: {
+      inAppNotification: true,
+      webPushNotification: false,
+      emailGateway: "未配置",
+      smsGateway: "未配置",
+      templates: {
+        applySuccess: "您的活动【{activityName}】报名已提交，请等待管理员初审。",
+        auditResult: "您的活动【{activityName}】初审结果：{result}。{comment}",
+        interviewReminder: "提示：您有安排在 {date} {time} 的面试，请准时参加。",
+        employmentResult: "恭喜您已被【{activityName}】录用为STAFF！请联系组长报到。",
+        exceptionalAttendance: "异常打卡：您的【{date}】打卡由于【{reason}】被记为异常。",
+        leaveResult: "请假审批：您的【{date}】请假申请已被{result}。原因：{comment}",
+        urgentAnnouncement: "【紧急通知】请立即登录系统确认最新的考勤及打卡通知。"
+      },
+      defaultAnnouncementType: "NORMAL",
+      defaultAnnouncementPriority: "NORMAL",
+      forceConfirmRules: "URGENT_ONLY",
+      failureRetryRules: "RETRY_3_TIMES_10M"
+    },
+    updatedBy: "U_SUPER",
+    updatedAt: "2026-07-12 12:00:00"
+  },
+  {
+    key: "security",
+    category: "security",
+    value: {
+      passwordPolicy: "MEDIUM",
+      lockoutRules: "5_FAILURES_LOCK_30M",
+      sessionExpiryMinutes: 60,
+      tokenRefreshPlaceholder: "ENABLED",
+      require2fa: false,
+      recordingDeviceRule: "RECORD_ALL_DEVICES",
+      doubleConfirmOnSensitiveActions: true,
+      requireReasonOnAttendanceCorrection: true,
+      requireReasonOnActivityUnlock: true,
+      highRiskOpsNotification: true
+    },
+    updatedBy: "U_SUPER",
+    updatedAt: "2026-07-12 12:00:00"
+  }
+];
+
+const initialIntegrations = [
+  { key: "sms", name: "短信服务", category: "notifications", mode: "Mock 演示", status: "Mock 演示", lastTested: "2026-07-12 12:00", description: "用于验证码登录和结果通知" },
+  { key: "oss", name: "对象存储", category: "storage", mode: "Mock 演示", status: "Mock 演示", lastTested: "2026-07-12 12:00", description: "存储身份证、自拍照和报名附件" },
+  { key: "webpush", name: "Web Push", category: "notifications", mode: "等待 Codex 接入", status: "等待 Codex 接入", lastTested: "--", description: "浏览器应用内直接推送消息" },
+  { key: "ocr", name: "OCR 身份证识别", category: "ai", mode: "等待 Codex 接入", status: "等待 Codex 接入", lastTested: "--", description: "自动提取身份证号及姓名" },
+  { key: "face", name: "人脸识别与比对", category: "ai", mode: "等待 Codex 接入", status: "等待 Codex 接入", lastTested: "--", description: "打卡自拍照与身份证底片比对" },
+  { key: "liveness", name: "活体检测", category: "ai", mode: "等待 Codex 接入", status: "等待 Codex 接入", lastTested: "--", description: "防止照片、视频绕过考勤打卡" },
+  { key: "maps", name: "谷歌/高德地图服务", category: "location", mode: "Mock 演示", status: "已连接", lastTested: "2026-07-12 20:30", description: "场馆范围围栏圈定及地图打卡显示" },
+  { key: "gps", name: "GPS 篡改检测", category: "location", mode: "等待 Codex 接入", status: "等待 Codex 接入", lastTested: "--", description: "检测 Mock 位置、分身软件" },
+  { key: "agreement", name: "电子服务协议 (Alipay)", category: "legal", mode: "等待 Codex 接入", status: "等待 Codex 接入", lastTested: "--", description: "招募协议及保险免责申明在线签署" },
+  { key: "email", name: "邮件服务 (SMTP)", category: "notifications", mode: "Mock 演示", status: "Mock 演示", lastTested: "2026-07-11 15:40", description: "通知书及报表备份导出邮件发送" },
+  { key: "webhook", name: "系统 Webhook", category: "data", mode: "未配置", status: "未配置", lastTested: "--", description: "业务状态变更推送到第三方系统" },
+  { key: "redis", name: "Redis 缓存", category: "infra", mode: "Mock 演示", status: "已连接", lastTested: "2026-07-12 20:30", description: "保存考勤签到验证码、二维码Token" },
+  { key: "mysql", name: "MySQL 数据库", category: "infra", mode: "Mock 演示", status: "已连接", lastTested: "2026-07-12 20:30", description: "结构化业务主数据持久化存储" }
+];
 
 // In-memory collections initialized from initial mock data
 class MockDatabase {
@@ -16,6 +299,10 @@ class MockDatabase {
   public groups: Group[] = [...mockGroups];
   public attendanceRecords: AttendanceRecord[] = [...mockAttendanceRecords];
   public announcements: Announcement[] = [...mockAnnouncements];
+  public adminAssignments: AdminAssignment[] = [];
+  public permissionGroups: AdminPermissionGroup[] = [];
+  public systemSettings: SystemSetting[] = [];
+  public integrations: any[] = [];
   public leaveRequests: LeaveRequest[] = [
     {
       id: "LEAVE_01",
@@ -71,7 +358,7 @@ class MockDatabase {
       id: "LOG_01",
       operatorId: "U_ADMIN",
       operatorName: "张晓明",
-      operatorRole: "ACTIVITY_ADMIN",
+      operatorRole: "ADMIN",
       action: "APPROVE_APPLICATION",
       targetType: "Application",
       targetId: "APP_01",
@@ -95,6 +382,10 @@ class MockDatabase {
         createdAt: "2026-07-05 10:00:00"
       }
     ];
+    this.permissionGroups = JSON.parse(JSON.stringify(initialPermissionGroups));
+    this.adminAssignments = JSON.parse(JSON.stringify(initialAdminAssignments));
+    this.systemSettings = JSON.parse(JSON.stringify(initialSettings));
+    this.integrations = JSON.parse(JSON.stringify(initialIntegrations));
   }
 
   public reset() {
@@ -105,6 +396,10 @@ class MockDatabase {
     this.groups = JSON.parse(JSON.stringify(mockGroups));
     this.attendanceRecords = JSON.parse(JSON.stringify(mockAttendanceRecords));
     this.announcements = JSON.parse(JSON.stringify(mockAnnouncements));
+    this.permissionGroups = JSON.parse(JSON.stringify(initialPermissionGroups));
+    this.adminAssignments = JSON.parse(JSON.stringify(initialAdminAssignments));
+    this.systemSettings = JSON.parse(JSON.stringify(initialSettings));
+    this.integrations = JSON.parse(JSON.stringify(initialIntegrations));
     this.leaveRequests = [
       {
         id: "LEAVE_01",
@@ -172,7 +467,7 @@ class MockDatabase {
         id: "LOG_01",
         operatorId: "U_ADMIN",
         operatorName: "张晓明",
-        operatorRole: "ACTIVITY_ADMIN",
+        operatorRole: "ADMIN",
         action: "APPROVE_APPLICATION",
         targetType: "Application",
         targetId: "APP_01",
@@ -242,9 +537,9 @@ export const mockApiAdapter = {
     // Add audit log
     db.auditLogs.unshift({
       id: `LOG_${Date.now()}`,
-      operatorId: "U_SUPER",
-      operatorName: "超级管理员",
-      operatorRole: "SUPER_ADMIN",
+      operatorId: "U_ADMIN",
+      operatorName: "系统管理员",
+      operatorRole: "ADMIN",
       action: "CREATE_ACTIVITY",
       targetType: "Activity",
       targetId: newAct.id,
@@ -511,7 +806,7 @@ export const mockApiAdapter = {
 
     // 6. 当前操作人有该场次扫码权限
     const operator = db.users.find(u => u.id === operatorId);
-    const hasPermission = operator?.role === "LEADER" || operator?.role === "ACTIVITY_ADMIN" || operator?.role === "SUPER_ADMIN";
+    const hasPermission = operator?.role === "LEADER" || operator?.role === "ADMIN";
     if (!hasPermission) {
       throw new Error("权限校验失败：当前操作人无该场次扫码核销权限");
     }
@@ -827,7 +1122,7 @@ export const mockApiAdapter = {
       id: `LOG_${Date.now()}`,
       operatorId,
       operatorName,
-      operatorRole: "ACTIVITY_ADMIN",
+      operatorRole: "ADMIN",
       action: "CORRECT_ATTENDANCE",
       targetType: "AttendanceRecord",
       targetId: attendanceId,
@@ -1067,5 +1362,347 @@ export const mockApiAdapter = {
     if (!user) throw new NotFoundError("用户不存在");
     user.role = role as any;
     return user;
+  },
+
+  async getSettings(): Promise<SystemSetting[]> {
+    await delay(100);
+    return db.systemSettings;
+  },
+
+  async getSettingsByCategory(category: string): Promise<SystemSetting | undefined> {
+    await delay(100);
+    return db.systemSettings.find(s => s.category === category);
+  },
+
+  async updateSettings(category: string, values: any, operatorId?: string, operatorName?: string): Promise<SystemSetting> {
+    await delay(150);
+    let setting = db.systemSettings.find(s => s.category === category);
+    if (!setting) {
+      setting = {
+        key: category,
+        category: category as SettingCategory,
+        value: values,
+        updatedBy: operatorId || "UNKNOWN",
+        updatedAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+      };
+      db.systemSettings.push(setting);
+    } else {
+      setting.value = { ...setting.value, ...values };
+      setting.updatedBy = operatorId || "UNKNOWN";
+      setting.updatedAt = new Date().toISOString().replace("T", " ").substring(0, 19);
+    }
+
+    db.auditLogs.unshift({
+      id: `LOG_${Date.now()}`,
+      operatorId: operatorId || "SYSTEM",
+      operatorName: operatorName || "系统",
+      operatorRole: "ADMIN",
+      action: "UPDATE_SYSTEM_SETTINGS",
+      targetType: "SystemSetting",
+      targetId: category,
+      description: `修改了【${category}】类别的系统配置项`,
+      createdAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+    });
+
+    return setting;
+  },
+
+  async getAdministrators(): Promise<any[]> {
+    await delay(100);
+    const admins = db.users.filter(u => u.role === "ADMIN");
+    return admins.map(u => {
+      const assignment = db.adminAssignments.find(a => a.userId === u.id);
+      return {
+        id: u.id,
+        name: u.name,
+        phone: u.phone,
+        role: u.role,
+        permissionGroupIds: assignment?.permissionGroupIds || [],
+        directAllowPermissions: assignment?.directAllowPermissions || [],
+        directDenyPermissions: assignment?.directDenyPermissions || [],
+        activityIds: assignment?.activityIds || ["*"],
+        enabled: assignment ? assignment.enabled : true,
+        createdAt: u.createdAt || "2026-07-01 12:00:00"
+      };
+    });
+  },
+
+  async createAdministrator(admin: any): Promise<any> {
+    await delay(150);
+    let user = db.users.find(u => u.phone === admin.phone);
+    if (!user) {
+      user = {
+        id: admin.userId || `U_ADMIN_${Date.now()}`,
+        name: admin.name,
+        phone: admin.phone,
+        role: "ADMIN",
+        gender: admin.gender || "MALE",
+        idCard: admin.idCard || "33010219900101" + Math.floor(1000 + Math.random() * 9000),
+        status: "NORMAL",
+        createdAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+      };
+      db.users.push(user);
+    } else {
+      user.role = "ADMIN";
+    }
+
+    let assignment = db.adminAssignments.find(a => a.userId === user!.id);
+    if (!assignment) {
+      assignment = {
+        id: `ASG_${Date.now()}`,
+        userId: user.id,
+        permissionGroupIds: admin.permissionGroupIds || [],
+        directAllowPermissions: admin.directAllowPermissions || [],
+        directDenyPermissions: admin.directDenyPermissions || [],
+        activityIds: admin.activityIds || ["*"],
+        enabled: true
+      };
+      db.adminAssignments.push(assignment);
+    } else {
+      assignment.permissionGroupIds = admin.permissionGroupIds || [];
+      assignment.directAllowPermissions = admin.directAllowPermissions || [];
+      assignment.directDenyPermissions = admin.directDenyPermissions || [];
+      assignment.activityIds = admin.activityIds || ["*"];
+      assignment.enabled = true;
+    }
+
+    db.auditLogs.unshift({
+      id: `LOG_${Date.now()}`,
+      operatorId: admin.operatorId || "SYSTEM",
+      operatorName: admin.operatorName || "系统",
+      operatorRole: "ADMIN",
+      action: "ADD_ADMINISTRATOR",
+      targetType: "User",
+      targetId: user.id,
+      description: `新增或升级了管理员【${user.name}】并配置了权限`,
+      createdAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+    });
+
+    return {
+      ...user,
+      ...assignment
+    };
+  },
+
+  async updateAdministrator(id: string, admin: any): Promise<any> {
+    await delay(150);
+    const user = db.users.find(u => u.id === id);
+    if (!user) throw new NotFoundError("管理员不存在");
+
+    if (admin.name) user.name = admin.name;
+    if (admin.phone) user.phone = admin.phone;
+
+    let assignment = db.adminAssignments.find(a => a.userId === id);
+    if (!assignment) {
+      assignment = {
+        id: `ASG_${Date.now()}`,
+        userId: id,
+        permissionGroupIds: admin.permissionGroupIds || [],
+        directAllowPermissions: admin.directAllowPermissions || [],
+        directDenyPermissions: admin.directDenyPermissions || [],
+        activityIds: admin.activityIds || ["*"],
+        enabled: admin.enabled !== undefined ? admin.enabled : true
+      };
+      db.adminAssignments.push(assignment);
+    } else {
+      if (admin.permissionGroupIds) assignment.permissionGroupIds = admin.permissionGroupIds;
+      if (admin.directAllowPermissions) assignment.directAllowPermissions = admin.directAllowPermissions;
+      if (admin.directDenyPermissions) assignment.directDenyPermissions = admin.directDenyPermissions;
+      if (admin.activityIds) assignment.activityIds = admin.activityIds;
+      if (admin.enabled !== undefined) assignment.enabled = admin.enabled;
+    }
+
+    db.auditLogs.unshift({
+      id: `LOG_${Date.now()}`,
+      operatorId: admin.operatorId || "SYSTEM",
+      operatorName: admin.operatorName || "系统",
+      operatorRole: "ADMIN",
+      action: "UPDATE_ADMINISTRATOR",
+      targetType: "User",
+      targetId: id,
+      description: `更新了管理员【${user.name}】的权限及基本信息`,
+      createdAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+    });
+
+    return {
+      ...user,
+      ...assignment
+    };
+  },
+
+  async disableAdministrator(id: string, operatorId?: string, operatorName?: string): Promise<any> {
+    await delay(150);
+    const user = db.users.find(u => u.id === id);
+    if (!user) throw new NotFoundError("管理员不存在");
+
+    let assignment = db.adminAssignments.find(a => a.userId === id);
+    if (!assignment) {
+      assignment = {
+        id: `ASG_${Date.now()}`,
+        userId: id,
+        permissionGroupIds: [],
+        directAllowPermissions: [],
+        directDenyPermissions: [],
+        activityIds: [],
+        enabled: false
+      };
+      db.adminAssignments.push(assignment);
+    } else {
+      assignment.enabled = false;
+    }
+
+    db.auditLogs.unshift({
+      id: `LOG_${Date.now()}`,
+      operatorId: operatorId || "SYSTEM",
+      operatorName: operatorName || "系统",
+      operatorRole: "ADMIN",
+      action: "DISABLE_ADMINISTRATOR",
+      targetType: "User",
+      targetId: id,
+      description: `禁用了管理员【${user.name}】的登录及管理权限`,
+      createdAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+    });
+
+    return {
+      ...user,
+      ...assignment
+    };
+  },
+
+  async getPermissionGroups(): Promise<AdminPermissionGroup[]> {
+    await delay(100);
+    return db.permissionGroups;
+  },
+
+  async createPermissionGroup(group: any): Promise<AdminPermissionGroup> {
+    await delay(150);
+    const newGroup: AdminPermissionGroup = {
+      id: `PG_${Date.now()}`,
+      name: group.name,
+      description: group.description || "",
+      isSystem: false,
+      permissions: group.permissions || [],
+      createdAt: new Date().toISOString().replace("T", " ").substring(0, 19),
+      updatedAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+    };
+    db.permissionGroups.push(newGroup);
+
+    db.auditLogs.unshift({
+      id: `LOG_${Date.now()}`,
+      operatorId: group.operatorId || "SYSTEM",
+      operatorName: group.operatorName || "系统",
+      operatorRole: "ADMIN",
+      action: "CREATE_PERMISSION_GROUP",
+      targetType: "AdminPermissionGroup",
+      targetId: newGroup.id,
+      description: `创建了全新权限组【${newGroup.name}】`,
+      createdAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+    });
+
+    return newGroup;
+  },
+
+  async updatePermissionGroup(id: string, group: any): Promise<AdminPermissionGroup> {
+    await delay(150);
+    const existing = db.permissionGroups.find(g => g.id === id);
+    if (!existing) throw new NotFoundError("权限组不存在");
+
+    if (existing.isSystem) {
+      throw new Error("系统内置权限组禁止修改");
+    }
+
+    if (group.name) existing.name = group.name;
+    if (group.description !== undefined) existing.description = group.description;
+    if (group.permissions) existing.permissions = group.permissions;
+    existing.updatedAt = new Date().toISOString().replace("T", " ").substring(0, 19);
+
+    db.auditLogs.unshift({
+      id: `LOG_${Date.now()}`,
+      operatorId: group.operatorId || "SYSTEM",
+      operatorName: group.operatorName || "系统",
+      operatorRole: "ADMIN",
+      action: "UPDATE_PERMISSION_GROUP",
+      targetType: "AdminPermissionGroup",
+      targetId: id,
+      description: `修改了权限组【${existing.name}】的权限内容`,
+      createdAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+    });
+
+    return existing;
+  },
+
+  async deletePermissionGroup(id: string): Promise<boolean> {
+    await delay(150);
+    const idx = db.permissionGroups.findIndex(g => g.id === id);
+    if (idx === -1) throw new NotFoundError("权限组不存在");
+
+    const existing = db.permissionGroups[idx];
+    if (existing.isSystem) {
+      throw new Error("系统内置权限组禁止删除");
+    }
+
+    db.permissionGroups.splice(idx, 1);
+
+    db.adminAssignments.forEach(a => {
+      a.permissionGroupIds = a.permissionGroupIds.filter(pgId => pgId !== id);
+    });
+
+    return true;
+  },
+
+  async getIntegrations(): Promise<any[]> {
+    await delay(100);
+    return db.integrations;
+  },
+
+  async updateIntegration(integrationKey: string, values: any): Promise<any> {
+    await delay(150);
+    const integration = db.integrations.find(i => i.key === integrationKey);
+    if (!integration) throw new NotFoundError("集成组件不存在");
+
+    Object.assign(integration, values);
+    integration.lastTested = new Date().toISOString().replace("T", " ").substring(0, 16);
+
+    db.auditLogs.unshift({
+      id: `LOG_${Date.now()}`,
+      operatorId: "SYSTEM",
+      operatorName: "系统",
+      operatorRole: "ADMIN",
+      action: "UPDATE_INTEGRATION",
+      targetType: "Integration",
+      targetId: integrationKey,
+      description: `配置并更新了【${integration.name}】集成参数`,
+      createdAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+    });
+
+    return integration;
+  },
+
+  async testIntegration(integrationKey: string): Promise<any> {
+    await delay(1000);
+    const integration = db.integrations.find(i => i.key === integrationKey);
+    if (!integration) throw new NotFoundError("集成组件不存在");
+
+    integration.lastTested = new Date().toISOString().replace("T", " ").substring(0, 16);
+    const isSuccess = Math.random() > 0.05;
+    integration.status = isSuccess ? "已连接" : "连接失败";
+
+    db.auditLogs.unshift({
+      id: `LOG_${Date.now()}`,
+      operatorId: "SYSTEM",
+      operatorName: "系统",
+      operatorRole: "ADMIN",
+      action: "TEST_INTEGRATION",
+      targetType: "Integration",
+      targetId: integrationKey,
+      description: `对【${integration.name}】组件执行了连通性测试。结果：${integration.status}`,
+      createdAt: new Date().toISOString().replace("T", " ").substring(0, 19)
+    });
+
+    return {
+      success: isSuccess,
+      message: isSuccess ? "连接成功！组件运行正常。" : "连接测试失败：无法连接到第三方服务，请检查凭证或网络连通性。",
+      integration
+    };
   }
 };

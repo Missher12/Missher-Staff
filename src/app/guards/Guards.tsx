@@ -9,7 +9,7 @@ import { AlertCircle, FileText, Check } from "lucide-react";
 // ==========================================
 interface RoleGuardProps {
   children: React.ReactNode;
-  allowedRoles: Array<"APPLICANT" | "STAFF" | "LEADER" | "ACTIVITY_ADMIN" | "SUPER_ADMIN">;
+  allowedRoles: Array<"APPLICANT" | "STAFF" | "LEADER" | "ADMIN">;
 }
 
 export const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) => {
@@ -21,8 +21,8 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 特殊机制：SUPER_ADMIN 拥有任何页面的访问权限
-  if (user.role === "SUPER_ADMIN") {
+  // If role is ADMIN, we let them proceed. Finer permission check can be done via PermissionGuard
+  if (user.role === "ADMIN") {
     return <>{children}</>;
   }
 
@@ -37,6 +37,118 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) 
     } else {
       return <Navigate to="/admin/dashboard" replace />;
     }
+  }
+
+  return <>{children}</>;
+};
+
+// ==========================================
+// 1.5 Permission Controls
+// ==========================================
+export function usePermission() {
+  const { user } = useAuthStore();
+  const { adminAssignments, permissionGroups } = useEventStore();
+
+  const hasPermission = (permission: PermissionCode, activityId?: string): boolean => {
+    if (!user) return false;
+    
+    // Non-ADMIN roles have no system permissions by default
+    if (user.role !== "ADMIN") return false;
+
+    // Default System Admins (seed users)
+    if (user.id === "U_SUPER" || user.id === "U_ADMIN") {
+      return true;
+    }
+
+    const assignment = adminAssignments?.find(a => a.userId === user.id);
+    if (!assignment || !assignment.enabled) {
+      return false;
+    }
+
+    // Direct deny first
+    if (assignment.directDenyPermissions?.includes(permission)) {
+      return false;
+    }
+
+    // Direct allow
+    if (assignment.directAllowPermissions?.includes(permission)) {
+      if (activityId && assignment.activityIds && assignment.activityIds.length > 0) {
+        if (!assignment.activityIds.includes("*") && !assignment.activityIds.includes(activityId)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Resolve via groups
+    const userGroups = permissionGroups?.filter(g => assignment.permissionGroupIds?.includes(g.id)) || [];
+    
+    // Check if any group has the permission
+    const hasGroupPerm = userGroups.some(g => g.permissions?.includes(permission));
+    if (hasGroupPerm) {
+      if (activityId && assignment.activityIds && assignment.activityIds.length > 0) {
+        if (!assignment.activityIds.includes("*") && !assignment.activityIds.includes(activityId)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    return false;
+  };
+
+  return { hasPermission };
+}
+
+interface PermissionGateProps {
+  permission: PermissionCode;
+  activityId?: string;
+  fallback?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+export const PermissionGate: React.FC<PermissionGateProps> = ({
+  permission,
+  activityId,
+  fallback = null,
+  children,
+}) => {
+  const { hasPermission } = usePermission();
+  const allowed = hasPermission(permission, activityId);
+
+  if (!allowed) {
+    return <>{fallback}</>;
+  }
+
+  return <>{children}</>;
+};
+
+interface PermissionGuardProps {
+  permission: PermissionCode;
+  activityId?: string;
+  children: React.ReactNode;
+}
+
+export const PermissionGuard: React.FC<PermissionGuardProps> = ({
+  permission,
+  activityId,
+  children,
+}) => {
+  const { hasPermission } = usePermission();
+  const allowed = hasPermission(permission, activityId);
+
+  if (!allowed) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center bg-white border border-zinc-100 rounded-3xl m-8">
+        <span className="p-3 bg-red-50 text-[#FF453A] rounded-full mb-4">
+          <AlertCircle size={32} />
+        </span>
+        <h3 className="text-lg font-bold text-[#1D1D1F]">暂无访问权限</h3>
+        <p className="text-xs text-[#86868B] max-w-sm mt-2 leading-relaxed">
+          您的管理员账户未被分配 <strong>{permission}</strong> 权限，无法执行此操作或访问此页面。如需协助，请联系系统管理员。
+        </p>
+      </div>
+    );
   }
 
   return <>{children}</>;

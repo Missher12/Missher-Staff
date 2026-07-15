@@ -7,7 +7,7 @@ export let mockUsers: User[] = [
     name: "张晓明",
     phone: "18888888888",
     idCard: "110101******8888",
-    role: "ACTIVITY_ADMIN",
+    role: "ADMIN",
     gender: "MALE",
     email: "admin@acgconvention.com"
   },
@@ -16,7 +16,7 @@ export let mockUsers: User[] = [
     name: "王博",
     phone: "19999999999",
     idCard: "110101******9999",
-    role: "SUPER_ADMIN",
+    role: "ADMIN",
     gender: "MALE"
   },
   {

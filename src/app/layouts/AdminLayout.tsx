@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { 
   LayoutDashboard, Users, Calendar, BarChart2, 
-  LogOut, ShieldAlert, Laptop, UserCheck, Menu, X
+  LogOut, ShieldAlert, Laptop, UserCheck, Menu, X, Settings
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -29,15 +29,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: "/admin/groups", label: "小组岗位", icon: <Users size={18} /> },
     { path: "/admin/leave", label: "请假审批", icon: <UserCheck size={18} /> },
     { path: "/admin/announcements", label: "公告发布", icon: <LayoutDashboard size={18} /> },
-    { path: "/admin/imports", label: "导入导出", icon: <Laptop size={18} /> },
+    { path: "/admin/settings", label: "系统设置", icon: <Settings size={18} /> },
   ];
 
   const demoRoles = [
     { role: "APPLICANT", label: "报名人员" },
     { role: "STAFF", label: "STAFF" },
     { role: "LEADER", label: "组长" },
-    { role: "ACTIVITY_ADMIN", label: "管理员" },
-    { role: "SUPER_ADMIN", label: "超管" }
+    { role: "ADMIN", label: "管理员" }
   ] as const;
 
   const sidebarContent = (
@@ -93,7 +92,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                   if (dr.role === "APPLICANT") navigate("/applicant/dashboard");
                   else if (dr.role === "STAFF") navigate("/staff/dashboard");
                   else if (dr.role === "LEADER") navigate("/leader/dashboard");
-                  else if (dr.role === "SUPER_ADMIN") navigate("/super-admin/dashboard");
                   else navigate("/admin/dashboard");
                 }}
                 className={`px-1.5 py-1 text-[9px] font-semibold rounded-md border text-left truncate transition-all cursor-pointer ${
@@ -118,7 +116,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             <div className="min-w-0">
               <p className="text-xs font-bold truncate leading-tight">{user?.name}</p>
               <span className="text-[10px] text-[#86868B] font-medium leading-none mt-0.5 block truncate">
-                {user?.role === "SUPER_ADMIN" ? "超级管理员" : "活动管理员"}
+                {user?.role === "ADMIN" ? "系统管理员" : "工作人员"}
               </span>
             </div>
           </div>

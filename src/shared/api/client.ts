@@ -352,5 +352,121 @@ export const apiClient = {
       body: JSON.stringify({ role })
     });
     return (await res.json()).data;
+  },
+
+  async getSettings() {
+    if (isMock()) return mockApiAdapter.getSettings();
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/settings`);
+    return (await res.json()).data;
+  },
+
+  async getSettingsByCategory(category: string) {
+    if (isMock()) return mockApiAdapter.getSettingsByCategory(category);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/settings/${category}`);
+    return (await res.json()).data;
+  },
+
+  async updateSettings(category: string, values: any, operatorId?: string, operatorName?: string) {
+    if (isMock()) return mockApiAdapter.updateSettings(category, values, operatorId, operatorName);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/settings/${category}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values, operatorId, operatorName })
+    });
+    return (await res.json()).data;
+  },
+
+  async getAdministrators() {
+    if (isMock()) return mockApiAdapter.getAdministrators();
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/administrators`);
+    return (await res.json()).data;
+  },
+
+  async createAdministrator(admin: any) {
+    if (isMock()) return mockApiAdapter.createAdministrator(admin);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/administrators`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(admin)
+    });
+    return (await res.json()).data;
+  },
+
+  async updateAdministrator(id: string, admin: any) {
+    if (isMock()) return mockApiAdapter.updateAdministrator(id, admin);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/administrators/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(admin)
+    });
+    return (await res.json()).data;
+  },
+
+  async disableAdministrator(id: string, operatorId?: string, operatorName?: string) {
+    if (isMock()) return mockApiAdapter.disableAdministrator(id, operatorId, operatorName);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/administrators/${id}/disable`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operatorId, operatorName })
+    });
+    return (await res.json()).data;
+  },
+
+  async getPermissionGroups() {
+    if (isMock()) return mockApiAdapter.getPermissionGroups();
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/permission-groups`);
+    return (await res.json()).data;
+  },
+
+  async createPermissionGroup(group: any) {
+    if (isMock()) return mockApiAdapter.createPermissionGroup(group);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/permission-groups`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(group)
+    });
+    return (await res.json()).data;
+  },
+
+  async updatePermissionGroup(id: string, group: any) {
+    if (isMock()) return mockApiAdapter.updatePermissionGroup(id, group);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/permission-groups/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(group)
+    });
+    return (await res.json()).data;
+  },
+
+  async deletePermissionGroup(id: string) {
+    if (isMock()) return mockApiAdapter.deletePermissionGroup(id);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/permission-groups/${id}`, {
+      method: "DELETE"
+    });
+    return (await res.json()).success;
+  },
+
+  async getIntegrations() {
+    if (isMock()) return mockApiAdapter.getIntegrations();
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/integrations`);
+    return (await res.json()).data;
+  },
+
+  async updateIntegration(integrationKey: string, values: any) {
+    if (isMock()) return mockApiAdapter.updateIntegration(integrationKey, values);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/integrations/${integrationKey}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values)
+    });
+    return (await res.json()).data;
+  },
+
+  async testIntegration(integrationKey: string) {
+    if (isMock()) return mockApiAdapter.testIntegration(integrationKey);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/integrations/${integrationKey}/test`, {
+      method: "POST"
+    });
+    return (await res.json()).data;
   }
 };

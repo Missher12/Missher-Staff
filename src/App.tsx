@@ -15,7 +15,6 @@ import { applicantRoutes } from "./app/router/applicant.routes";
 import { staffRoutes } from "./app/router/staff.routes";
 import { leaderRoutes } from "./app/router/leader.routes";
 import { adminRoutes } from "./app/router/admin.routes";
-import { superAdminRoutes } from "./app/router/super-admin.routes";
 
 import { ShieldAlert, HelpCircle } from "lucide-react";
 import { useEventStore } from "./app/stores/eventStore";
@@ -114,15 +113,13 @@ export default function App() {
             return <RouteElement key={`adm-${idx}`} path={r.path} element={r.element} />;
           })}
 
-          {/* Load Super Admin Routes */}
-          {superAdminRoutes.map((r, idx) => {
-            const RouteElement = Route as any;
-            return <RouteElement key={`sad-${idx}`} path={r.path} element={r.element} />;
-          })}
+          {/* Compatibility Redirects for Legacy Super Admin Pages */}
+          <Route path="/super-admin" element={<Navigate to="/admin/settings" replace />} />
+          <Route path="/super-admin/*" element={<Navigate to="/admin/settings" replace />} />
 
           {/* ========================================================
               Global fallback & Role-based Redirection
-             ======================================================== */}
+              ======================================================== */}
           <Route 
             path="*" 
             element={
@@ -133,8 +130,6 @@ export default function App() {
                   <Navigate to="/staff/dashboard" replace />
                 ) : user.role === "LEADER" ? (
                   <Navigate to="/leader/dashboard" replace />
-                ) : user.role === "SUPER_ADMIN" ? (
-                  <Navigate to="/super-admin/dashboard" replace />
                 ) : (
                   <Navigate to="/admin/dashboard" replace />
                 )

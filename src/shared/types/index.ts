@@ -3,7 +3,7 @@
  */
 
 // 1. 角色定义
-export type Role = "APPLICANT" | "STAFF" | "LEADER" | "ACTIVITY_ADMIN" | "SUPER_ADMIN";
+export type Role = "APPLICANT" | "STAFF" | "LEADER" | "ADMIN";
 
 // 2. 报名流程状态定义
 // 草稿 -> 已提交 -> 待审核 -> 退回补充资料 -> 审核通过(待安排面试) -> 待面试 -> 已签到(面试中) -> 面试完成 -> 待管理员终审 -> 已录用/未录用
@@ -466,3 +466,86 @@ export interface AuditLog {
   ipAddress?: string;
   createdAt: string;
 }
+
+export type PermissionCode =
+  | "system.settings.general.manage"
+  | "system.administrators.manage"
+  | "system.permission-groups.manage"
+  | "system.integrations.manage"
+  | "system.data.manage"
+  | "system.security.manage"
+  | "system.audit.view"
+  | "activity.create"
+  | "activity.edit"
+  | "activity.delete"
+  | "activity.archive"
+  | "activity.unlock"
+  | "application.view"
+  | "application.review"
+  | "interview.view"
+  | "interview.manage"
+  | "interview.scan"
+  | "interview.review"
+  | "admission.view"
+  | "admission.decide"
+  | "people.view"
+  | "people.manage"
+  | "people.sensitive.view"
+  | "group.view"
+  | "group.manage"
+  | "position.manage"
+  | "staff.assign"
+  | "attendance.view"
+  | "attendance.group.view"
+  | "attendance.correct"
+  | "attendance.export"
+  | "leave.view"
+  | "leave.review"
+  | "announcement.view"
+  | "announcement.publish"
+  | "form.view"
+  | "form.manage"
+  | "data.import"
+  | "data.export";
+
+export interface AdminPermissionGroup {
+  id: string;
+  name: string;
+  description?: string;
+  permissions: PermissionCode[];
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminAssignment {
+  id: string;
+  userId: string;
+  permissionGroupIds: string[];
+  directAllowPermissions: PermissionCode[];
+  directDenyPermissions: PermissionCode[];
+  activityIds: string[];
+  enabled: boolean;
+}
+
+export type SettingCategory =
+  | "general"
+  | "activity-defaults"
+  | "attendance"
+  | "application-interview"
+  | "data-privacy"
+  | "notifications"
+  | "integrations"
+  | "security"
+  | "data-maintenance"
+  | "audit-logs"
+  | "system-status";
+
+export interface SystemSetting<T = any> {
+  key: string;
+  category: SettingCategory;
+  value: T;
+  updatedBy: string;
+  updatedAt: string;
+}
+
