@@ -58,11 +58,6 @@ export function usePermission() {
     // Non-ADMIN roles have no system permissions by default
     if (user.role !== "ADMIN") return false;
 
-    // Default System Admins (seed users)
-    if (user.id === "U_SUPER" || user.id === "U_ADMIN") {
-      return true;
-    }
-
     const assignment = adminAssignments?.find(a => a.userId === user.id);
     if (!assignment || !assignment.enabled) {
       return false;

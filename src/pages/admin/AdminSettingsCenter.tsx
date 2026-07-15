@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { usePermission } from "../../app/guards/Guards";
 import { useEventStore } from "../../app/stores/eventStore";
 import { useAuthStore } from "../../app/stores/authStore";
 import { AdminLayout } from "../../app/layouts/AdminLayout";
@@ -88,8 +90,43 @@ const PERMISSION_METADATA = [
   ]}
 ];
 
+const getTabPermission = (tab: string): PermissionCode => {
+  switch (tab) {
+    case "general":
+      return "system.settings.general.manage";
+    case "admins":
+      return "system.administrators.manage";
+    case "permission-groups":
+      return "system.permission-groups.manage";
+    case "integrations":
+      return "system.integrations.manage";
+    case "data-maintenance":
+      return "system.data.manage";
+    case "security":
+      return "system.security.manage";
+    case "audit-logs":
+      return "system.audit.view";
+    case "activity-defaults":
+      return "activity.edit";
+    case "attendance":
+      return "attendance.view";
+    case "application-interview":
+      return "interview.manage";
+    case "data-privacy":
+      return "system.security.manage";
+    case "notifications":
+      return "announcement.publish";
+    default:
+      return "system.settings.general.manage";
+  }
+};
+
 export const AdminSettingsCenter: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<SettingCategory | "admins" | "permission-groups" | "audit-logs">("general");
+  const { category } = useParams<{ category?: string }>();
+  const navigate = useNavigate();
+  const { hasPermission } = usePermission();
+  const activeTab = (category || "") as SettingCategory | "admins" | "permission-groups" | "audit-logs" | "";
+
   const { showToast } = useEventStore();
   const { user: currentUser } = useAuthStore();
   
@@ -119,7 +156,9 @@ export const AdminSettingsCenter: React.FC = () => {
 
   // Load all settings databases on mount and active tab switch
   useEffect(() => {
-    loadAllData();
+    if (activeTab) {
+      loadAllData();
+    }
   }, [activeTab]);
 
   const loadAllData = async () => {
@@ -164,7 +203,7 @@ export const AdminSettingsCenter: React.FC = () => {
       await apiClient.updateSettings(
         category, 
         values, 
-        currentUser?.id || "U_SUPER", 
+        currentUser?.id || "U_ADMIN", 
         currentUser?.name || "张晓明"
       );
       showToast("系统安全设置及防作弊安全参数在内存中更新成功！对应规则已实时生效。", "success");
@@ -366,6 +405,96 @@ export const AdminSettingsCenter: React.FC = () => {
     );
   };
 
+  if (activeTab === "") {
+    return (
+      <AdminLayout>
+        <div className="space-y-6">
+          <div className="border-b border-black/5 pb-4">
+            <h1 className="text-xl font-black text-[#1D1D1F] flex items-center gap-2">
+              <Settings className="text-[#BF5AF2]" size={24} /> 设置中心总览
+            </h1>
+            <p className="text-xs text-[#86868B] font-semibold mt-1">
+              请选择对应的配置模块进行精细化系统设定。各模块受独立的 Granular 角色与权限限制。
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {SIDEBAR_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const perm = getTabPermission(item.key);
+              const isAllowed = hasPermission(perm);
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => {
+                    if (isAllowed) {
+                      navigate(`/admin/settings/${item.key}`);
+                    } else {
+                      showToast(`您没有访问该设置模块的【${perm}】权限！`, "error");
+                    }
+                  }}
+                  className={`p-6 bg-white border rounded-[28px] text-left transition-all hover:shadow-md hover:scale-[1.01] flex flex-col justify-between h-48 group cursor-pointer ${
+                    isAllowed ? "border-black/5" : "border-red-100 bg-red-50/10 opacity-70"
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className={`p-3 rounded-2xl ${isAllowed ? "bg-purple-50 text-[#BF5AF2]" : "bg-red-50 text-red-500"}`}>
+                        <Icon size={20} />
+                      </div>
+                      {!isAllowed && (
+                        <span className="text-[9px] px-2 py-0.5 bg-red-100 text-red-600 rounded-full font-bold">
+                          无权限
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-[#1D1D1F] group-hover:text-[#BF5AF2] transition-colors">
+                        {item.name}
+                      </h3>
+                      <p className="text-xs text-[#86868B] font-medium mt-1 leading-relaxed line-clamp-2">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-[#BF5AF2] font-bold flex items-center gap-1 mt-2">
+                    <span>进入设置</span>
+                    <span className="transition-transform group-hover:translate-x-0.5">→</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const requiredPermission = getTabPermission(activeTab);
+  const isAllowed = hasPermission(requiredPermission);
+
+  if (!isAllowed) {
+    return (
+      <AdminLayout>
+        <div className="flex flex-col items-center justify-center p-12 text-center bg-white border border-zinc-100 rounded-[28px] min-h-[50vh]">
+          <span className="p-3 bg-red-50 text-[#FF453A] rounded-full mb-4">
+            <ShieldAlert size={32} />
+          </span>
+          <h3 className="text-lg font-bold text-[#1D1D1F]">暂无设置模块访问权限</h3>
+          <p className="text-xs text-[#86868B] max-w-sm mt-2 leading-relaxed">
+            您的管理员账户没有 <strong>{requiredPermission}</strong> 权限，无法访问『{SIDEBAR_ITEMS.find(s => s.key === activeTab)?.name}』设置。
+          </p>
+          <button
+            onClick={() => navigate("/admin/settings")}
+            className="mt-6 px-6 py-2.5 bg-zinc-800 text-white rounded-full text-xs font-bold hover:bg-zinc-700 transition-all cursor-pointer"
+          >
+            返回设置总览
+          </button>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout>
       <div className="flex flex-col lg:flex-row min-h-[calc(100vh-140px)] gap-6">
@@ -377,6 +506,12 @@ export const AdminSettingsCenter: React.FC = () => {
               <Settings size={16} className="text-[#BF5AF2]" /> 控制控制面板
             </h2>
             <p className="text-[10px] text-[#86868B] font-medium mt-0.5">多重维度保障漫展考务平稳运行</p>
+            <button
+              onClick={() => navigate("/admin/settings")}
+              className="mt-2 w-full py-1.5 text-center border border-purple-100 bg-purple-50/50 text-[#BF5AF2] rounded-xl text-[10px] font-bold hover:bg-purple-100 transition-all cursor-pointer"
+            >
+              ← 返回设置总览
+            </button>
           </div>
           
           <div className="space-y-1 overflow-y-auto max-h-[600px] pr-1 scrollbar-thin">
@@ -386,7 +521,7 @@ export const AdminSettingsCenter: React.FC = () => {
               return (
                 <button
                   key={item.key}
-                  onClick={() => setActiveTab(item.key)}
+                  onClick={() => navigate(`/admin/settings/${item.key}`)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 cursor-pointer ${
                     isActive 
                       ? "bg-[#BF5AF2] text-white shadow-md shadow-[#BF5AF2]/10" 
@@ -639,7 +774,7 @@ export const AdminSettingsCenter: React.FC = () => {
                               >
                                 <Edit2 size={13} />
                               </button>
-                              {adm.id !== "U_SUPER" && adm.enabled && (
+                              {adm.id !== "U_ADMIN" && adm.enabled && (
                                 <button
                                   onClick={() => handleDisableAdmin(adm.id, adm.name)}
                                   className="p-1 text-[#FF453A] hover:bg-red-50 rounded cursor-pointer inline-flex items-center"

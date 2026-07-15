@@ -92,15 +92,6 @@ const initialPermissionGroups: AdminPermissionGroup[] = [
 
 const initialAdminAssignments: AdminAssignment[] = [
   {
-    id: "ASG_SUPER",
-    userId: "U_SUPER",
-    permissionGroupIds: ["PG_SYS_ADMIN"],
-    directAllowPermissions: [],
-    directDenyPermissions: [],
-    activityIds: ["*"],
-    enabled: true
-  },
-  {
     id: "ASG_ADMIN",
     userId: "U_ADMIN",
     permissionGroupIds: ["PG_SYS_ADMIN"],
@@ -130,7 +121,7 @@ const initialSettings: SystemSetting[] = [
       icpInfo: "浙ICP备20260712号",
       defaultActivityCover: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60"
     },
-    updatedBy: "U_SUPER",
+    updatedBy: "U_ADMIN",
     updatedAt: "2026-07-12 12:00:00"
   },
   {
@@ -150,7 +141,7 @@ const initialSettings: SystemSetting[] = [
       defaultArchiveRule: "AUTO_30_DAYS",
       defaultRetentionPeriodMonths: 24
     },
-    updatedBy: "U_SUPER",
+    updatedBy: "U_ADMIN",
     updatedAt: "2026-07-12 12:00:00"
   },
   {
@@ -177,7 +168,7 @@ const initialSettings: SystemSetting[] = [
       photoRetentionMonths: 12,
       attendanceReportDefaultOpen: true
     },
-    updatedBy: "U_SUPER",
+    updatedBy: "U_ADMIN",
     updatedAt: "2026-07-12 12:00:00"
   },
   {
@@ -201,7 +192,7 @@ const initialSettings: SystemSetting[] = [
       interviewResultOptions: ["RECOMMENDED", "WAITING", "NOT_RECOMMENDED"],
       finalEmploymentRule: "ADMIN_DECISION_ONLY"
     },
-    updatedBy: "U_SUPER",
+    updatedBy: "U_ADMIN",
     updatedAt: "2026-07-12 12:00:00"
   },
   {
@@ -226,7 +217,7 @@ const initialSettings: SystemSetting[] = [
       exportWatermark: true,
       exportAuditLogging: true
     },
-    updatedBy: "U_SUPER",
+    updatedBy: "U_ADMIN",
     updatedAt: "2026-07-12 12:00:00"
   },
   {
@@ -251,7 +242,7 @@ const initialSettings: SystemSetting[] = [
       forceConfirmRules: "URGENT_ONLY",
       failureRetryRules: "RETRY_3_TIMES_10M"
     },
-    updatedBy: "U_SUPER",
+    updatedBy: "U_ADMIN",
     updatedAt: "2026-07-12 12:00:00"
   },
   {
@@ -269,7 +260,7 @@ const initialSettings: SystemSetting[] = [
       requireReasonOnActivityUnlock: true,
       highRiskOpsNotification: true
     },
-    updatedBy: "U_SUPER",
+    updatedBy: "U_ADMIN",
     updatedAt: "2026-07-12 12:00:00"
   }
 ];

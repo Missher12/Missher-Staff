@@ -12,14 +12,6 @@ export let mockUsers: User[] = [
     email: "admin@acgconvention.com"
   },
   {
-    id: "U_SUPER",
-    name: "王博",
-    phone: "19999999999",
-    idCard: "110101******9999",
-    role: "ADMIN",
-    gender: "MALE"
-  },
-  {
     id: "U_LEADER",
     name: "陈大伟",
     phone: "13511112222",

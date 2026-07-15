@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
+import { usePermission } from "../guards/Guards";
 import { 
   LayoutDashboard, Users, Calendar, BarChart2, 
   LogOut, ShieldAlert, Laptop, UserCheck, Menu, X, Settings
@@ -12,6 +13,7 @@ interface AdminLayoutProps {
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { user, loginAsRole, logout } = useAuthStore();
+  const { hasPermission } = usePermission();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -22,15 +24,38 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   };
 
   const navItems = [
-    { path: "/admin/dashboard", label: "活动大盘", icon: <LayoutDashboard size={18} /> },
-    { path: "/admin/applications", label: "报名审核", icon: <Users size={18} /> },
-    { path: "/admin/interviews", label: "面试场次", icon: <Calendar size={18} /> },
-    { path: "/admin/attendance/realtime", label: "实时考勤", icon: <BarChart2 size={18} /> },
-    { path: "/admin/groups", label: "小组岗位", icon: <Users size={18} /> },
-    { path: "/admin/leave", label: "请假审批", icon: <UserCheck size={18} /> },
-    { path: "/admin/announcements", label: "公告发布", icon: <LayoutDashboard size={18} /> },
-    { path: "/admin/settings", label: "系统设置", icon: <Settings size={18} /> },
+    { path: "/admin/dashboard", label: "活动大盘", icon: <LayoutDashboard size={18} />, permission: "application.view" },
+    { path: "/admin/applications", label: "报名审核", icon: <Users size={18} />, permission: "application.view" },
+    { path: "/admin/interviews", label: "面试场次", icon: <Calendar size={18} />, permission: "interview.view" },
+    { path: "/admin/attendance/realtime", label: "实时考勤", icon: <BarChart2 size={18} />, permission: "attendance.view" },
+    { path: "/admin/groups", label: "小组岗位", icon: <Users size={18} />, permission: "group.view" },
+    { path: "/admin/leave", label: "请假审批", icon: <UserCheck size={18} />, permission: "leave.view" },
+    { path: "/admin/announcements", label: "公告发布", icon: <LayoutDashboard size={18} />, permission: "announcement.view" },
+    { 
+      path: "/admin/settings", 
+      label: "系统设置", 
+      icon: <Settings size={18} />, 
+      customCheck: () => (
+        hasPermission("system.settings.general.manage") ||
+        hasPermission("system.administrators.manage") ||
+        hasPermission("system.permission-groups.manage") ||
+        hasPermission("system.integrations.manage") ||
+        hasPermission("system.data.manage") ||
+        hasPermission("system.security.manage") ||
+        hasPermission("system.audit.view") ||
+        hasPermission("activity.edit") ||
+        hasPermission("attendance.view") ||
+        hasPermission("interview.manage") ||
+        hasPermission("announcement.publish")
+      )
+    },
   ];
+
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.customCheck) return item.customCheck();
+    if (item.permission) return hasPermission(item.permission as any);
+    return true;
+  });
 
   const demoRoles = [
     { role: "APPLICANT", label: "报名人员" },
@@ -55,7 +80,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
         {/* Navigation */}
         <nav className="space-y-1">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const active = location.pathname === item.path || (item.path === "/admin/applications" && location.pathname.startsWith("/admin/applications/"));
             return (
               <Link
